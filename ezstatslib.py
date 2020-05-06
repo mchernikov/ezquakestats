@@ -37,7 +37,7 @@ possibleColors = [HtmlColor.COLOR_RED,
                   HtmlColor.COLOR_CYAN,
                   HtmlColor.COLOR_MAGENTA]
 
-CURRENT_VERSION = "1.02"  
+CURRENT_VERSION = "1.03"  
                   
 LOG_TIMESTAMP_DELIMITER = " <-> "
 
@@ -2917,9 +2917,13 @@ class Player:
 
     # powerUpsStatus: dict: ["ra"] = True, ["ya"] = False, etc.
     def calculateAchievements(self, matchProgress, powerUpsStatus, headToHead, isTeamGame):
+        # LONG_LIVE_KING
+        if (len(self.deathStreaks) != 0 and self.deathStreaks[0].start >= self.connectTime + 60):
+            self.achievements.append( Achievement(AchievementType.LONG_LIVE_KING, "first time is killed on second %d%s" % (self.deathStreaks[0].start, "" if self.connectTime == 0 else " (connected on %d sec)" % (self.connectTime))) )
+        else:
         # LONG_LIVE
-        if (len(self.deathStreaks) != 0 and self.deathStreaks[0].start >= self.connectTime + 30):
-            self.achievements.append( Achievement(AchievementType.LONG_LIVE, "first time is killed on second %d%s" % (self.deathStreaks[0].start, "" if self.connectTime == 0 else " (connected on %d sec)" % (self.connectTime))) )
+            if (len(self.deathStreaks) != 0 and self.deathStreaks[0].start >= self.connectTime + 30):
+                self.achievements.append( Achievement(AchievementType.LONG_LIVE, "first time is killed on second %d%s" % (self.deathStreaks[0].start, "" if self.connectTime == 0 else " (connected on %d sec)" % (self.connectTime))) )
 
         for strk in self.deathStreaks:
             # SUICIDE_MASTER & SUICIDE_KING
@@ -2935,6 +2939,11 @@ class Player:
             if strk.count >= 10:
                 self.achievements.append( Achievement(AchievementType.DEATH_STREAK_PAIN, "%d deaths in a row during %d seconds" % (strk.count, strk.duration())) )
 
+        for strk in self.calculatedStreaks:
+            # KILL_STREAK
+            if strk.count >= 15:
+                self.achievements.append( Achievement(AchievementType.KILL_STREAK, "%d kills in a row during %d seconds" % (strk.count, strk.duration())) )
+                
         # HORRIBLE_FINISH, FINISH_GURU
         if len(matchProgress) >= 2:
             pos1 = 1
@@ -3009,6 +3018,10 @@ class Player:
         if self.spawnfrags >= 10:
             self.achievements.append( Achievement(AchievementType.CHILD_KILLER, "%d spawn frags%s" % (self.spawnfrags, "" if self.spawnfrags < 15 else ". %d CARL!!" % (self.spawnfrags))) )
 
+        # CHILD_LOVER
+        if self.spawnfrags == 0:
+            self.achievements.append( Achievement(AchievementType.CHILD_LOVER, "NO spawn frags") )
+            
         # ALWAYS_THE_FIRST
         if len(matchProgress) >= 2:
             isFirst = True
@@ -3049,8 +3062,12 @@ class Player:
             self.achievements.append( Achievement(AchievementType.DUEL_WINNER, "") )
 
         # SNIPER
-        if self.rlskill_dh >= 40:
-            self.achievements.append( Achievement(AchievementType.SNIPER, "direct hit is %d" % (self.rlskill_dh)) )
+        if len(self.rl_damages_gvn) != 0:
+            if (sum(1 for val in self.rl_damages_gvn if val[0] == 110) / float(len(self.rl_damages_gvn)) > 0.45 and len(self.rl_damages_gvn) > 30):
+                self.achievements.append( Achievement(AchievementType.SNIPER, "direct hit is {0:5.3}%".format((sum(1 for val in self.rl_damages_gvn if val[0] == 110) * 100) / float(len(self.rl_damages_gvn)))))
+        else:
+            if self.rlskill_dh >= 40:
+                self.achievements.append( Achievement(AchievementType.SNIPER, "direct hit is %d" % (self.rlskill_dh)) )
 
         # PERSONAL_STALKER
         if len(matchProgress) != 0 and len(matchProgress[0]) > 3:
@@ -3073,7 +3090,7 @@ class Player:
 
         # FASTER_THAN_BULLET
         for strk in self.calculatedStreaks:
-            if strk.count >= 5 and (float(strk.end - strk.start) / (float)(strk.count)) <= 3.0:
+            if strk.count >= 5 and (strk.end - strk.start > 0) and (float(strk.end - strk.start) / (float)(strk.count)) <= 3.0:
                 self.achievements.append( Achievement(AchievementType.FASTER_THAN_BULLET, "streak {0:d} kills in {1:d} seconds - only {2:.3} seconds per kill".format(strk.count, (strk.end - strk.start), (float(strk.end - strk.start) / (float)(strk.count)))) )
 
         # NO_SUICIDES
@@ -3090,6 +3107,14 @@ class Player:
             self.achievements.append(Achievement(AchievementType.MULTIPLE_PENETRATION,
                                                  'Got killed with {} different weapons'.format(len(self.death_weapons))))
 
+        # GL_LOVER
+        if self.gl_kills >= 15 and ((float(self.gl_kills) / float(self.kills) * 100)) >= 45.0:
+            self.achievements.append( Achievement(AchievementType.GL_LOVER, "{0:d} grenade launcher kills({1:5.3}%)".format(self.gl_kills, (float(self.gl_kills) / float(self.kills) * 100))) )
+                                                 
+        # OVERTIME
+        if self.overtime_frags != -1:
+            self.achievements.append( Achievement(AchievementType.OVERTIME, "goes to the overtime with {0:d} frags".format(self.overtime_frags)) )                                                             
+                                                 
         if isTeamGame:
             # TEAMMATES_FAN
             if self.playTime() >= 300 and self.teamkills == 0 and self.teamdeaths == 0:
@@ -3105,7 +3130,7 @@ AchievementType = enum( LONG_LIVE  = 1, #"Long Live and Prosper",  # the 1st 30 
                         FINISH_GURU = 6, # "Finish Guru", # 2+ places up during the last minute and win  DONE
                         HORRIBLE_FINISH = 7, # "Horrible Finish - finished to play too early", # -2 places up during the last minute  DONE
                         ALWAYS_THE_FIRST = 8, # "Always the 1st", # the 1st place from the 1st minute until the finish  DONE tmp img
-                        OVERTIME_REASON = 9, # "Overtime - 5 minutes of fight more",  # one of who didn't want to give up
+                        OVERTIME = 9, # "One of who didn't want to give up", # "Overtime - extra minutes of fight"  #DEATHMATCH_SPECIFIC  DONE
                         SECOND_OVERTIME_REASON = 10, # "The 2nd overtime!",  # one of who didn't want to give up once more time
                         HUNDRED_KILLS = 11, # "More than 100 kills", # 100++ kills  DONE tmp img
                         HUNDRED_DEATHS = 12, # "More than 100 deaths", # 100++ deaths  DONE tmp img
@@ -3139,6 +3164,13 @@ AchievementType = enum( LONG_LIVE  = 1, #"Long Live and Prosper",  # the 1st 30 
                         NO_SUICIDES = 40, # "I love this life!! No suicides at all"  # no suicides  DONE
                         UNIVERSAL_SOLDIER = 41, # "Killed players with more than 5 weapons"  DONE
                         MULTIPLE_PENETRATION = 42, # "Got killed with more than 5 weapons"  DONE
+                        LONG_LIVE_KING = 43, #"Long Live and Prosper Like A King",  # the 1st 60 seconds without deaths  DONE
+                        HULK_SMASH = 44, #"Hulk SMASH!!",  # the 1st place frags is twice bigger than the 2nd place  DONE
+                        KILL_STREAK = 45, # "Killing without rest" # 15+ kill streak   DONE
+                        CHILD_LOVER = 46, # "Children are the flowers of our lives - no spawn frags" DONE
+                        GL_LOVER = 47,  # "Grenades is my passion!"  # 45%+ and 20+ kills by gl  DONE
+                        BALANCED_PLAYER = 48, # "Balanced player - no one wants to lose: all %d duels are draws"  DONE
+                        LIKE_AN_ANGEL = 49,  # "Like an angel - NO damage to teammates at all!!"  #XML_SPECIFIC DONE
                                             )
 
 AchievementLevel = enum(UNKNOWN=0, BASIC_POSITIVE=1, BASIC_NEGATIVE=2, ADVANCE_POSITIVE=3, ADVANCE_NEGATIVE=5, RARE_POSITIVE=6, RARE_NEGATIVE=7, ULTRA_RARE=8)
@@ -3174,8 +3206,8 @@ class Achievement:
             return "Horrible Finish - finished to play too early"
         if self.achtype == AchievementType.ALWAYS_THE_FIRST:
             return "Always the 1st"
-        if self.achtype == AchievementType.OVERTIME_REASON:
-            return "Overtime - 5 minutes of fight more"
+        if self.achtype == AchievementType.OVERTIME:
+            return "One of who didn't want to give up"
         if self.achtype == AchievementType.SECOND_OVERTIME_REASON:
             return "The 2nd overtime!"
         if self.achtype == AchievementType.HUNDRED_KILLS:
@@ -3240,6 +3272,20 @@ class Achievement:
             return 'Can handle any weapon'
         if self.achtype == AchievementType.MULTIPLE_PENETRATION:
             return 'So many different holes in your body:('
+        if self.achtype == AchievementType.LONG_LIVE_KING:
+            return "Long Live and Prosper Like A King"
+        if self.achtype == AchievementType.HULK_SMASH:
+            return "Hulk SMASH!!"
+        if self.achtype == AchievementType.KILL_STREAK:
+            return "Killing without rest"
+        if self.achtype == AchievementType.CHILD_LOVER:
+            return "Children are the flowers of our lives - no spawn frags"
+        if self.achtype == AchievementType.GL_LOVER:
+            return "Grenades is my passion!"
+        if self.achtype == AchievementType.BALANCED_PLAYER:
+            return "Balanced player - no one wants to lose"
+        if self.achtype == AchievementType.LIKE_AN_ANGEL:
+            return "Like an angel - NO damage to teammates at all!!"
 
     # AchievementLevel = enum(UNKNOWN=0, BASIC_POSITIVE=1, BASIC_NEGATIVE=2, ADVANCE_POSITIVE=3, ADVANCE_NEGATIVE=5, RARE_POSITIVE=6, RARE_NEGATIVE=7, ULTRA_RARE=8)
     def level(self):
@@ -3263,14 +3309,16 @@ class Achievement:
             
         if self.achtype == AchievementType.LONG_LIVE          or \
            self.achtype == AchievementType.ALWAYS_THE_FIRST   or \
-           self.achtype == AchievementType.OVERTIME_REASON    or \
+           self.achtype == AchievementType.OVERTIME           or \
            self.achtype == AchievementType.DUEL_WINNER        or \
            self.achtype == AchievementType.SNIPER             or \
            self.achtype == AchievementType.PERSONAL_STALKER   or \
            self.achtype == AchievementType.WHITEWASH          or \
            self.achtype == AchievementType.FASTER_THAN_BULLET or \
            self.achtype == AchievementType.TEAMMATES_FAN      or \
-           self.achtype == AchievementType.NO_SUICIDES:
+           self.achtype == AchievementType.NO_SUICIDES        or \
+           self.achtype == AchievementType.CHILD_LOVER        or \
+           self.achtype == AchievementType.GL_LOVER:
             return AchievementLevel.ADVANCE_POSITIVE            
             
         if self.achtype == AchievementType.SUICIDE_KING    or \
@@ -3284,7 +3332,12 @@ class Achievement:
            self.achtype == AchievementType.FINISH_GURU            or \
            self.achtype == AchievementType.ELECTROMASTER          or \
            self.achtype == AchievementType.DEATH_CHEATER          or \
-           self.achtype == AchievementType.UNIVERSAL_SOLDIER:
+           self.achtype == AchievementType.UNIVERSAL_SOLDIER      or \
+           self.achtype == AchievementType.LONG_LIVE_KING         or \
+           self.achtype == AchievementType.HULK_SMASH             or \
+           self.achtype == AchievementType.KILL_STREAK            or \
+           self.achtype == AchievementType.BALANCED_PLAYER        or \
+           self.achtype == AchievementType.LIKE_AN_ANGEL:
             return AchievementLevel.RARE_POSITIVE
       
         if self.achtype == AchievementType.HORRIBLE_FINISH  or \
@@ -3425,6 +3478,22 @@ class Achievement:
             return "ezquakestats/img/ach_universal_soldier.jpg"
         if self.achtype == AchievementType.MULTIPLE_PENETRATION:
             return "ezquakestats/img/ach_multiple_penetration.jpg"
+        if self.achtype == AchievementType.LONG_LIVE_KING:
+            return "ezquakestats/img/ach_long_liver_king.jpg"
+        if self.achtype == AchievementType.HULK_SMASH:
+            return "ezquakestats/img/ach_hulk_smash.jpg"
+        if self.achtype == AchievementType.KILL_STREAK:
+            return "ezquakestats/img/ach_kill_streak.jpg"
+        if self.achtype == AchievementType.CHILD_LOVER:
+            return "ezquakestats/img/ach_child_lover.png"
+        if self.achtype == AchievementType.GL_LOVER:
+            return "ezquakestats/img/ach_gl_lover.jpg"
+        if self.achtype == AchievementType.BALANCED_PLAYER:
+            return "ezquakestats/img/ach_balanced_player.png"
+        if self.achtype == AchievementType.LIKE_AN_ANGEL:
+            return "ezquakestats/img/ach_like_an_angel.png"
+        if self.achtype == AchievementType.OVERTIME:
+            return "ezquakestats/img/ach_overtime.jpg"            
 
         # temp images
         if self.achtype == AchievementType.ALWAYS_THE_FIRST:
@@ -3435,8 +3504,6 @@ class Achievement:
             return "ezquakestats/img/ach_100_deaths_TMP.jpg"
         if self.achtype == AchievementType.HUNDRED_FRAGS:
             return "ezquakestats/img/ach_100_frags_TMP.jpg"
-        if self.achtype == AchievementType.OVERTIME_REASON:
-            return "ezquakestats/img/ach_overtime.jpg"
 
         return "NotImplemented"
 
@@ -3496,6 +3563,75 @@ def calculateCommonAchievements(allplayers, headToHead, isTeamGame, headToHeadDa
             if pl.deaths < (int)(avgDeathsCount * 0.5):
                 pl.achievements.append( Achievement(AchievementType.DEATH_CHEATER, "died only {0:d} times ({1:5.3}% of the average)".format(pl.deaths, (float(pl.deaths) / float(avgDeathsCount) * 100))) )
 
+    # HULK_SMASH
+    if len(allplayers) >= 2:
+        sortedByFrags = sorted(allplayers, key=lambda x: (x.frags(), x.kills, x.calcDelta()), reverse=True)
+        if sortedByFrags[0].frags() >= sortedByFrags[1].frags()*1.75:
+            sortedByFrags[0].achievements.append( Achievement(AchievementType.HULK_SMASH, "frags number {0:d} much more that the 2nd place({1:d})".format(sortedByFrags[0].frags(), sortedByFrags[1].frags())) )
+
+    # BALANCED_PLAYER
+    if len(allplayers) >= 3:
+        for pl in allplayers:
+            if pl.playTime() >= 180:
+                isAllDraws = True
+                isAllNonZeros = True
+                duelsNum = 0
+                for pl2 in allplayers:
+                    plKills = 0
+                    plTeam = ""
+                    for val in headToHead[pl.name]:
+                        if val[0] == pl2.name:
+                            plKills = val[1]
+                            plTeam = pl2.teamname
+                    
+                    plDeaths = 0
+                    for val in headToHead[pl2.name]:
+                        if val[0] == pl.name:
+                            plDeaths = val[1]               
+                    
+                    if isTeamGame and pl.teamname == plTeam:
+                        continue
+                    
+                    duelsNum += 1
+                    
+                    if plKills == 0 and plDeaths == 0:
+                        isAllNonZeros = False
+                    
+                    if plKills != plDeaths:
+                        isAllDraws = False
+                        break
+
+                if isAllNonZeros and isAllDraws:
+                    pl.achievements.append( Achievement(AchievementType.BALANCED_PLAYER, "all %d duels are draws" % (duelsNum)) )
+
+    # LIKE_AN_ANGEL
+    if isTeamGame and not headToHeadDamage is None and headToHeadDamage != {}:
+        if len(allplayers) >= 3:
+            for pl in allplayers:
+                if pl.playTime() >= 180:
+                    isNoTeamDamage = True
+                    for pl2 in allplayers:
+                        plKillDamage = 0
+                        plTeam = ""
+                        for val in headToHeadDamage[pl.name]:
+                            if val[0] == pl2.name:
+                                plKillDamage = val[1]
+                                plTeam = pl2.teamname
+                        
+                        plDeathDamage = 0
+                        for val in headToHeadDamage[pl2.name]:
+                            if val[0] == pl.name:
+                                plDeathDamage = val[1]
+                        
+                        if pl.teamname == plTeam and pl.name != pl2.name:
+                            if plKillDamage != 0:
+                                isNoTeamDamage = False
+                                break
+                                
+                    if isNoTeamDamage:
+                        pl.achievements.append( Achievement(AchievementType.LIKE_AN_ANGEL) )
+
+                
 class Team:
     def __init__(self, teamname):
         self.name = teamname
