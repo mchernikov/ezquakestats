@@ -67,7 +67,7 @@ def fillH2HDamage(who,whom,value,minute):
 plPrevFragsDict = {}
 
 def getFragsLine(players):
-    playersByFrags = sorted(players, key=methodcaller("frags"), reverse=True)
+    playersByFrags = sorted(players, key=lambda x: (x.frags(), x.kills, x.calcDelta()), reverse=True)
     s = "[%s]" % (players[0].teamname)
 
     fragsSum = 0
@@ -850,7 +850,13 @@ for i in xrange(len(elementsByTime)):
             
             
         else:
-            # TODO mutual kill
+            # mutual kill
+            for pl in allplayers:
+                if pl.name == attacker1:
+                    pl.mutual_kills.append([tt,target1,wp1,wp2])
+                if pl.name == attacker2:
+                    pl.mutual_kills.append([tt,target2,wp2,wp1])
+            
             ll = "OLOLO: %f mutual kill: (attacker1(%s), target1(%s), wp1(%s)); (attacker2(%s), target2(%s), wp2(%s)\n" % (tt, attacker1, target1, wp1, attacker2, target2, wp2)
             ezstatslib.logError(ll)
             tmpComboStr += ll
@@ -888,7 +894,13 @@ for i in xrange(len(elementsCloseByTime)):
                 
         if (elementsCloseByTime[i][1][0].attacker == elementsCloseByTime[i][1][1].target and elementsCloseByTime[i][1][0].target == elementsCloseByTime[i][1][1].attacker) or \
            (elementsCloseByTime[i][1][0].target == elementsCloseByTime[i][1][1].attacker and elementsCloseByTime[i][1][0].attacker == elementsCloseByTime[i][1][1].target):
-           linesStr += "Mutual kill: %s(%s) vs. %s(%s), time: %s, delta: %s\n" % \
+            for pl in allplayers:
+                if pl.name == elementsCloseByTime[i][1][0].attacker:
+                    pl.mutual_kills.append([(elementsCloseByTime[i][0][1] + elementsCloseByTime[i][0][0]) / 2.0,elementsCloseByTime[i][1][0].target,elementsCloseByTime[i][1][0].type,elementsCloseByTime[i][1][1].type])
+                if pl.name == elementsCloseByTime[i][1][1].attacker:
+                    pl.mutual_kills.append([(elementsCloseByTime[i][0][1] + elementsCloseByTime[i][0][0]) / 2.0,elementsCloseByTime[i][1][1].target,elementsCloseByTime[i][1][1].type,elementsCloseByTime[i][1][0].type])
+           
+            linesStr += "Mutual kill: %s(%s) vs. %s(%s), time: %s, delta: %s\n" % \
                 ( elementsCloseByTime[i][1][0].attacker, \
                   elementsCloseByTime[i][1][0].type, \
                   elementsCloseByTime[i][1][0].target, \
@@ -941,7 +953,13 @@ for i in xrange(len(elementsCloseByTime)):
                 
                 if (elementsCloseByTime[i][1][0].attacker == elementsCloseByTime[i][1][1].target and elementsCloseByTime[i][1][0].target == elementsCloseByTime[i][1][1].attacker) or \
                    (elementsCloseByTime[i][1][0].target == elementsCloseByTime[i][1][1].attacker and elementsCloseByTime[i][1][0].attacker == elementsCloseByTime[i][1][1].target):
-                   linesStr += "Mutual kill: %s(%s) vs. %s(%s), time: %s, delta: %s\n" % \
+                    for pl in allplayers:
+                        if pl.name == elementsCloseByTime[i][1][0].attacker:
+                            pl.mutual_kills.append([(elementsCloseByTime[i][0][1] + elementsCloseByTime[i][0][0]) / 2.0,elementsCloseByTime[i][1][0].target,elementsCloseByTime[i][1][0].type,elementsCloseByTime[i][1][1].type])
+                        if pl.name == elementsCloseByTime[i][1][1].attacker:
+                            pl.mutual_kills.append([(elementsCloseByTime[i][0][1] + elementsCloseByTime[i][0][0]) / 2.0,elementsCloseByTime[i][1][1].target,elementsCloseByTime[i][1][1].type,elementsCloseByTime[i][1][0].type])
+                                      
+                    linesStr += "Mutual kill: %s(%s) vs. %s(%s), time: %s, delta: %s\n" % \
                         ( elementsCloseByTime[i][1][0].attacker, \
                           elementsCloseByTime[i][1][0].type, \
                           elementsCloseByTime[i][1][0].target, \
@@ -963,7 +981,13 @@ for i in xrange(len(elementsCloseByTime)):
                 
                 if (elementsCloseByTime[i][1][0].attacker == elementsCloseByTime[i][1][2].target and elementsCloseByTime[i][1][0].target == elementsCloseByTime[i][1][2].attacker) or \
                    (elementsCloseByTime[i][1][0].target == elementsCloseByTime[i][1][2].attacker and elementsCloseByTime[i][1][0].attacker == elementsCloseByTime[i][1][2].target):
-                   linesStr += "Mutual kill: %s(%s) vs. %s(%s), time: %s, delta: %s\n" % \
+                    for pl in allplayers:
+                        if pl.name == elementsCloseByTime[i][1][0].attacker:
+                            pl.mutual_kills.append([(elementsCloseByTime[i][0][2] + elementsCloseByTime[i][0][0]) / 2.0,elementsCloseByTime[i][1][0].target,elementsCloseByTime[i][1][0].type,elementsCloseByTime[i][1][2].type])
+                        if pl.name == elementsCloseByTime[i][1][2].attacker:
+                            pl.mutual_kills.append([(elementsCloseByTime[i][0][2] + elementsCloseByTime[i][0][0]) / 2.0,elementsCloseByTime[i][1][2].target,elementsCloseByTime[i][1][2].type,elementsCloseByTime[i][1][0].type])
+                   
+                    linesStr += "Mutual kill: %s(%s) vs. %s(%s), time: %s, delta: %s\n" % \
                         ( elementsCloseByTime[i][1][0].attacker, \
                           elementsCloseByTime[i][1][0].type, \
                           elementsCloseByTime[i][1][0].target, \
@@ -985,7 +1009,13 @@ for i in xrange(len(elementsCloseByTime)):
                 
                 if (elementsCloseByTime[i][1][1].attacker == elementsCloseByTime[i][1][2].target and elementsCloseByTime[i][1][1].target == elementsCloseByTime[i][1][2].attacker) or \
                    (elementsCloseByTime[i][1][1].target == elementsCloseByTime[i][1][2].attacker and elementsCloseByTime[i][1][1].attacker == elementsCloseByTime[i][1][2].target):
-                   linesStr += "Mutual kill: %s(%s) vs. %s(%s), time: %s, delta: %s\n" % \
+                    for pl in allplayers:
+                        if pl.name == elementsCloseByTime[i][1][1].attacker:
+                            pl.mutual_kills.append([(elementsCloseByTime[i][0][2] + elementsCloseByTime[i][0][1]) / 2.0,elementsCloseByTime[i][1][1].target,elementsCloseByTime[i][1][1].type,elementsCloseByTime[i][1][2].type])
+                        if pl.name == elementsCloseByTime[i][1][2].attacker:
+                            pl.mutual_kills.append([(elementsCloseByTime[i][0][2] + elementsCloseByTime[i][0][1]) / 2.0,elementsCloseByTime[i][1][2].target,elementsCloseByTime[i][1][2].type,elementsCloseByTime[i][1][1].type])
+                   
+                    linesStr += "Mutual kill: %s(%s) vs. %s(%s), time: %s, delta: %s\n" % \
                         ( elementsCloseByTime[i][1][1].attacker, \
                           elementsCloseByTime[i][1][1].type, \
                           elementsCloseByTime[i][1][1].target, \
@@ -1232,7 +1262,7 @@ if options.withScripts:
     resultString += "</pre>TEAM_RESULTS\n<pre>"
 
 s1 = ""
-players1ByFrags = sorted(players1, key=methodcaller("frags"), reverse=True)
+players1ByFrags = sorted(players1, key=lambda x: (x.frags(), x.kills, x.calcDelta()), reverse=True)
 for pl in players1ByFrags:
     if s1 == "":
         s1 = "[%s]:\n" % (pl.teamname)
@@ -1245,7 +1275,7 @@ for pl in players1ByFrags:
 resultString += "\n"
 
 s2 = ""
-players2ByFrags = sorted(players2, key=methodcaller("frags"), reverse=True)
+players2ByFrags = sorted(players2, key=lambda x: (x.frags(), x.kills, x.calcDelta()), reverse=True)
 for pl in players2ByFrags:
     if s2 == "":
         s2 = "[%s]:\n" % (pl.teamname)
@@ -1260,7 +1290,7 @@ resultString += "\n"
 if options.withScripts:
     resultString += "</pre>PLAYERS_ACHIEVEMENTS_PLACE\n<pre>"
 
-allplayersByFrags = sorted(allplayers, key=methodcaller("frags"), reverse=True)
+allplayersByFrags = sorted(allplayers, key=lambda x: (x.frags(), x.kills, x.calcDelta()), reverse=True)
 
 totalStreaksHtmlTable = \
     HTML.Table(header_row=["Kill streaks (%d+)\n" % (ezstatslib.KILL_STREAK_MIN_VALUE), "Death streaks (%d+)\n" % (ezstatslib.DEATH_STREAK_MIN_VALUE)],
@@ -1618,9 +1648,18 @@ resultString += str( createPlayersDuelTable(team1, players1ByFrags, players2ByFr
 resultString += "\n"
 resultString += str( createPlayersDuelTable(team2, players2ByFrags, players1ByFrags, True) )
 
-
-
 resultString += "\nTeammate telefrags: " + str(teammateTelefrags) + "\n"
+
+# mutual kills 
+resultString += "\nMutual kills: \n"
+for pl in allplayers:
+    if len(pl.mutual_kills) != 0:
+        resultString += "%s: " % (pl.name)
+        for mk in pl.mutual_kills:
+            resultString += "%f: %s(%s,%s)," % (mk[0], mk[1], mk[2], mk[3])
+        resultString += "\n"
+           
+resultString += "\n"
 
 # print resultString  RESULTPRINT
 

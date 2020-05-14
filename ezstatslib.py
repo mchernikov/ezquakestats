@@ -37,7 +37,7 @@ possibleColors = [HtmlColor.COLOR_RED,
                   HtmlColor.COLOR_CYAN,
                   HtmlColor.COLOR_MAGENTA]
 
-CURRENT_VERSION = "1.04"
+CURRENT_VERSION = "1.05"
                   
 LOG_TIMESTAMP_DELIMITER = " <-> "
 
@@ -2485,7 +2485,8 @@ class Player:
         
         self.rl_attacks = -1
         
-        self.double_kills = []
+        self.double_kills = []  # [[target1,target2,wp1],...]
+        self.mutual_kills = []  # [[time,target,kill_wp,death_wp],..]
         
     def initPowerUpsByMinutes(self, minutesCnt):
         self.gaByMinutes = [0 for i in xrange(minutesCnt+1)]
@@ -3121,6 +3122,10 @@ class Player:
         for i in xrange(len(self.double_kills)):
             self.achievements.append( Achievement(AchievementType.DOUBLE_KILL, "killed %s and %s with one %s shot!" % (self.double_kills[i][0], self.double_kills[i][1], self.double_kills[i][2])) )
             
+        # COMBO_MUTUAL_KILL
+        if len(self.mutual_kills) >= 3:
+            self.achievements.append( Achievement(AchievementType.COMBO_MUTUAL_KILL, "fought bravely until the last blood drop %d times" % (len(self.mutual_kills))) )
+            
         if isTeamGame:
             # TEAMMATES_FAN
             if self.playTime() >= 300 and self.teamkills == 0 and self.teamdeaths == 0:
@@ -3178,6 +3183,7 @@ AchievementType = enum( LONG_LIVE  = 1, #"Long Live and Prosper",  # the 1st 30 
                         BALANCED_PLAYER = 48, # "Balanced player - no one wants to lose: all %d duels are draws"  DONE
                         LIKE_AN_ANGEL = 49,  # "Like an angel - NO damage to teammates at all!!"  #XML_SPECIFIC    DONE
                         DOUBLE_KILL = 50,  # "Two budgies slain with but a single missile" #two kills with on shot  #XML_SPECIFIC    DONE
+                        COMBO_MUTUAL_KILL = 51,  # "Fight to the death!!"  3+ mutual kills       #XML_SPECIFIC    DONE
                                             )
 
 AchievementLevel = enum(UNKNOWN=0, BASIC_POSITIVE=1, BASIC_NEGATIVE=2, ADVANCE_POSITIVE=3, ADVANCE_NEGATIVE=5, RARE_POSITIVE=6, RARE_NEGATIVE=7, ULTRA_RARE=8)
@@ -3190,13 +3196,15 @@ class Achievement:
         self.achlevel = self.level()
 
     def toString(self):
-        return "%s" % (self.achtype)
+        for key in AchievementType.__dict__.keys():
+            if AchievementType.__dict__.get(key) == self.achtype:
+                return key
 
-    def generateHtml(self, size = 150):
-        return "<img src=\"%s\" alt=\"%s\" title=\"%s: %s\" style=\"width:%dpx;height:%dpx;\">" % (self.getImgSrc(), self.description(), self.description(), self.extra_info, size, size)
+    def generateHtml(self, path = "ezquakestats/img/", size = 150):
+        return "<img src=\"%s\" alt=\"%s\" title=\"%s: %s\" style=\"width:%dpx;height:%dpx;\">" % (self.getImgSrc(path), self.description(), self.description(), self.extra_info, size, size)
         
-    def generateHtmlEx(self, size = 125, radius = 45, shadowSize = 8, shadowIntensity = 35):
-        return "<img src=\"%s\" alt=\"%s\" title=\"%s: %s\" style=\"width:%dpx;height:%dpx;border: 8px solid %s; -webkit-border-radius: %d%%; -moz-border-radius: %d%%; border-radius: %d%%;box-shadow: 0px 0px %dpx %dpx rgba(0,0,0,0.%d);\">" % (self.getImgSrc(), self.description(), self.description(), self.extra_info, size, size, Achievement.getBorderColor(self.achlevel), radius, radius, radius, shadowSize, shadowSize, shadowIntensity)
+    def generateHtmlEx(self, path = "ezquakestats/img/", size = 125, radius = 45, shadowSize = 8, shadowIntensity = 35):
+        return "<img src=\"%s\" alt=\"%s\" title=\"%s: %s\" style=\"width:%dpx;height:%dpx;border: 8px solid %s; -webkit-border-radius: %d%%; -moz-border-radius: %d%%; border-radius: %d%%;box-shadow: 0px 0px %dpx %dpx rgba(0,0,0,0.%d);\">" % (self.getImgSrc(path), self.description(), self.description(), self.extra_info, size, size, Achievement.getBorderColor(self.achlevel), radius, radius, radius, shadowSize, shadowSize, shadowIntensity)
 
     def description(self):
         if self.achtype == AchievementType.LONG_LIVE:
@@ -3294,7 +3302,9 @@ class Achievement:
         if self.achtype == AchievementType.LIKE_AN_ANGEL:
             return "Like an angel - NO damage to teammates at all!!"
         if self.achtype == AchievementType.DOUBLE_KILL:
-            return "Two budgies slain with but a single missile"            
+            return "Two budgies slain with but a single missile"
+        if self.achtype == AchievementType.COMBO_MUTUAL_KILL:
+            return "Fight to the death!!"              
 
     # AchievementLevel = enum(UNKNOWN=0, BASIC_POSITIVE=1, BASIC_NEGATIVE=2, ADVANCE_POSITIVE=3, ADVANCE_NEGATIVE=5, RARE_POSITIVE=6, RARE_NEGATIVE=7, ULTRA_RARE=8)
     def level(self):
@@ -3347,7 +3357,8 @@ class Achievement:
            self.achtype == AchievementType.KILL_STREAK            or \
            self.achtype == AchievementType.BALANCED_PLAYER        or \
            self.achtype == AchievementType.LIKE_AN_ANGEL          or \
-           self.achtype == AchievementType.DOUBLE_KILL:
+           self.achtype == AchievementType.DOUBLE_KILL            or \
+           self.achtype == AchievementType.COMBO_MUTUAL_KILL:
             return AchievementLevel.RARE_POSITIVE
       
         if self.achtype == AchievementType.HORRIBLE_FINISH  or \
@@ -3421,101 +3432,103 @@ class Achievement:
                                     
         return str(achLevelsHtmlTable)
                     
-    def getImgSrc(self):
+    def getImgSrc(self, path):
         if self.achtype == AchievementType.LONG_LIVE:
-            return "ezquakestats/img/ach_long_liver.jpg"
+            return path + "ach_long_liver.jpg"
         if self.achtype == AchievementType.SUICIDE_MASTER:
-            return "ezquakestats/img/ach_suicide_master.jpg"
+            return path + "ach_suicide_master.jpg"
         if self.achtype == AchievementType.SUICIDE_KING:
-            return "ezquakestats/img/ach_suicide_king.jpg"
+            return path + "ach_suicide_king.jpg"
         if self.achtype == AchievementType.DEATH_STREAK_PAIN:
-            return "ezquakestats/img/ach_death_pain.jpg"
+            return path + "ach_death_pain.jpg"
         if self.achtype == AchievementType.HORRIBLE_FINISH:
-            return "ezquakestats/img/ach_horrible_finish.jpg"
+            return path + "ach_horrible_finish.jpg"
         if self.achtype == AchievementType.RED_ARMOR_EATER:
-            return "ezquakestats/img/ach_ra_eater.jpg"
+            return path + "ach_ra_eater.jpg"
         if self.achtype == AchievementType.GREEN_ARMOR_EATER:
-            return "ezquakestats/img/ach_ga_eater.jpg"
+            return path + "ach_ga_eater.jpg"
         if self.achtype == AchievementType.YELLOW_ARMOR_EATER:
-            return "ezquakestats/img/ach_ya_eater.jpg"
+            return path + "ach_ya_eater.jpg"
         if self.achtype == AchievementType.MEGA_HEALTH_EATER:
-            return "ezquakestats/img/ach_mh_eater.jpg"
+            return path + "ach_mh_eater.jpg"
         if self.achtype == AchievementType.CHILD_KILLER:
-            return "ezquakestats/img/ach_child_killer.png"
+            return path + "ach_child_killer.png"
         if self.achtype == AchievementType.ALWAYS_THE_LAST:
-            return "ezquakestats/img/ach_always_the_last.jpg"
+            return path + "ach_always_the_last.jpg"
         if self.achtype == AchievementType.RED_ARMOR_ALLERGY:
-            return "ezquakestats/img/ach_ra_allergy.jpg"
+            return path + "ach_ra_allergy.jpg"
         if self.achtype == AchievementType.GREEN_ARMOR_ALLERGY:
-            return "ezquakestats/img/ach_ga_allergy.jpg"
+            return path + "ach_ga_allergy.jpg"
         if self.achtype == AchievementType.YELLOW_ARMOR_ALLERGY:
-            return "ezquakestats/img/ach_ya_allergy.jpg"
+            return path + "ach_ya_allergy.jpg"
         if self.achtype == AchievementType.MEGA_HEALTH_ALLERGY:
-            return "ezquakestats/img/ach_mh_allergy.jpg"
+            return path + "ach_mh_allergy.jpg"
         if self.achtype == AchievementType.ROCKETS_LOVER:
-            return "ezquakestats/img/ach_rockets_lover.png"
+            return path + "ach_rockets_lover.png"
         if self.achtype == AchievementType.DUEL_WINNER:
-            return "ezquakestats/img/ach_duel_winner.jpg"
+            return path + "ach_duel_winner.jpg"
         if self.achtype == AchievementType.SNIPER:
-            return "ezquakestats/img/ach_sniper.jpg"
+            return path + "ach_sniper.jpg"
         if self.achtype == AchievementType.RAINBOW_FLAG:
-            return "ezquakestats/img/ach_rainbow_flag.jpg"
+            return path + "ach_rainbow_flag.jpg"
         if self.achtype == AchievementType.PERSONAL_STALKER:
-            return "ezquakestats/img/ach_personal_stalker.jpg"
+            return path + "ach_personal_stalker.jpg"
         if self.achtype == AchievementType.FINISH_GURU:
-            return "ezquakestats/img/ach_finish_guru.jpg"
+            return path + "ach_finish_guru.jpg"
         if self.achtype == AchievementType.SELF_DESTRUCTOR:
-            return "ezquakestats/img/ach_self_destructor.jpg"
+            return path + "ach_self_destructor.jpg"
         if self.achtype == AchievementType.TEAM_BEST_FRIEND_KILLER:
-            return "ezquakestats/img/ach_team_killer.jpg"
+            return path + "ach_team_killer.jpg"
         if self.achtype == AchievementType.TEAM_MAXIMUM_TEAMDEATHS:
-            return "ezquakestats/img/ach_team_deaths.jpg"
+            return path + "ach_team_deaths.jpg"
         if self.achtype == AchievementType.LUMBERJACK:
-            return "ezquakestats/img/ach_lumberjack.jpg"
+            return path + "ach_lumberjack.jpg"
         if self.achtype == AchievementType.ELECTROMASTER:
-            return "ezquakestats/img/ach_electromaster.png"
+            return path + "ach_electromaster.png"
         if self.achtype == AchievementType.WHITEWASH:
-            return "ezquakestats/img/ach_whitewash.png"
+            return path + "ach_whitewash.png"
         if self.achtype == AchievementType.FASTER_THAN_BULLET:
-            return "ezquakestats/img/ach_faster_than_bullet.png"
+            return path + "ach_faster_than_bullet.png"
         if self.achtype == AchievementType.DEATH_CHEATER:
-            return "ezquakestats/img/ach_death_cheater.jpg"
+            return path + "ach_death_cheater.jpg"
         if self.achtype == AchievementType.TEAMMATES_FAN:
-            return "ezquakestats/img/ach_teammates_fan.jpg"
+            return path + "ach_teammates_fan.jpg"
         if self.achtype == AchievementType.NO_SUICIDES:
-            return "ezquakestats/img/ach_no_suicides.jpg"
+            return path + "ach_no_suicides.jpg"
         if self.achtype == AchievementType.UNIVERSAL_SOLDIER:
-            return "ezquakestats/img/ach_universal_soldier.jpg"
+            return path + "ach_universal_soldier.jpg"
         if self.achtype == AchievementType.MULTIPLE_PENETRATION:
-            return "ezquakestats/img/ach_multiple_penetration.jpg"
+            return path + "ach_multiple_penetration.jpg"
         if self.achtype == AchievementType.LONG_LIVE_KING:
-            return "ezquakestats/img/ach_long_liver_king.jpg"
+            return path + "ach_long_liver_king.jpg"
         if self.achtype == AchievementType.HULK_SMASH:
-            return "ezquakestats/img/ach_hulk_smash.jpg"
+            return path + "ach_hulk_smash.jpg"
         if self.achtype == AchievementType.KILL_STREAK:
-            return "ezquakestats/img/ach_kill_streak.jpg"
+            return path + "ach_kill_streak.jpg"
         if self.achtype == AchievementType.CHILD_LOVER:
-            return "ezquakestats/img/ach_child_lover.png"
+            return path + "ach_child_lover.png"
         if self.achtype == AchievementType.GL_LOVER:
-            return "ezquakestats/img/ach_gl_lover.jpg"
+            return path + "ach_gl_lover.jpg"
         if self.achtype == AchievementType.BALANCED_PLAYER:
-            return "ezquakestats/img/ach_balanced_player.png"
+            return path + "ach_balanced_player.png"
         if self.achtype == AchievementType.LIKE_AN_ANGEL:
-            return "ezquakestats/img/ach_like_an_angel.png"
+            return path + "ach_like_an_angel.png"
         if self.achtype == AchievementType.OVERTIME:
-            return "ezquakestats/img/ach_overtime.jpg"
+            return path + "ach_overtime.jpg"
         if self.achtype == AchievementType.DOUBLE_KILL:
-            return "ezquakestats/img/ach_double_kill.png"
+            return path + "ach_double_kill.png"
+        if self.achtype == AchievementType.COMBO_MUTUAL_KILL:
+            return path + "ach_combo_mutual_kill.png"
 
         # temp images
         if self.achtype == AchievementType.ALWAYS_THE_FIRST:
-            return "ezquakestats/img/ach_always_the_first.jpg"
+            return path + "ach_always_the_first.jpg"
         if self.achtype == AchievementType.HUNDRED_KILLS:
-            return "ezquakestats/img/ach_100_kills_TMP.jpg"
+            return path + "ach_100_kills_TMP.jpg"
         if self.achtype == AchievementType.HUNDRED_DEATHS:
-            return "ezquakestats/img/ach_100_deaths_TMP.jpg"
+            return path + "ach_100_deaths_TMP.jpg"
         if self.achtype == AchievementType.HUNDRED_FRAGS:
-            return "ezquakestats/img/ach_100_frags_TMP.jpg"
+            return path + "ach_100_frags_TMP.jpg"
 
         return "NotImplemented"
 
