@@ -37,7 +37,7 @@ possibleColors = [HtmlColor.COLOR_RED,
                   HtmlColor.COLOR_CYAN,
                   HtmlColor.COLOR_MAGENTA]
 
-CURRENT_VERSION = "1.06"
+CURRENT_VERSION = "1.07"
                   
 LOG_TIMESTAMP_DELIMITER = " <-> "
 
@@ -1881,7 +1881,7 @@ HTML_SCRIPT_HIGHCHARTS_RL_SKILL_DIV_AND_TABLE_TAG = \
 "TABLE_ROWS" \
 "        </tr>\n" \
 "      </table>\n" \
-"</div>"
+"</div>\n"
 
 HTML_SCRIPT_HIGHCHARTS_RL_SKILL_TABLE_ROW = \
 "          <td style=\"width: TD_WIDTH%\">\n" \
@@ -2486,6 +2486,7 @@ class Player:
         self.rl_attacks = -1
         
         self.double_kills = []  # [[target1,target2,wp1],...]
+        self.triple_kills = []  # [[time,target1,target2,target3,wp],...]
         self.mutual_kills = []  # [[time,target,kill_wp,death_wp],..]
         self.suicide_kills = []  # [[time,target,wp],..]
         
@@ -3131,6 +3132,10 @@ class Player:
         if len(self.suicide_kills) >= 3:
             self.achievements.append( Achievement(AchievementType.COMBO_KAMIKAZE, "The sun on the wings - move forward! For the last time, the enemy will see the sunrise! One plane for one enemy! %d times..." % (len(self.suicide_kills))) )            
             
+        # COMBO_TRIPLE_KILL
+        for i in xrange(len(self.triple_kills)):
+            self.achievements.append( Achievement(AchievementType.COMBO_TRIPLE_KILL, "killed %s, %s and %s with one %s shot!" % (self.triple_kills[i][1], self.triple_kills[i][2], self.triple_kills[i][3], self.triple_kills[i][4])) )
+            
         if isTeamGame:
             # TEAMMATES_FAN
             if self.playTime() >= 300 and self.teamkills == 0 and self.teamdeaths == 0:
@@ -3138,58 +3143,59 @@ class Player:
 
 
 # DO NOT FORGET TO ADD NEW ITEMS TO description() METHOD
-AchievementType = enum( LONG_LIVE  = 1, #"Long Live and Prosper",  # the 1st 30 seconds without deaths  DONE
-                        SUICIDE_MASTER = 2, # "Suicide Master",   # 2 suicides in a row  DONE
-                        SUICIDE_KING = 3, # "Suicide King",   # 3++ suicides in a row  DONE
-                        DEATH_STREAK_PAIN = 4, # "What do you know about the pain?...", # 10++ death streak  DONE
-                        GREAT_FINISH = 5, # "Great Finish", # 2+ places up during the last minute
-                        FINISH_GURU = 6, # "Finish Guru", # 2+ places up during the last minute and win  DONE
-                        HORRIBLE_FINISH = 7, # "Horrible Finish - finished to play too early", # -2 places up during the last minute  DONE
-                        ALWAYS_THE_FIRST = 8, # "Always the 1st", # the 1st place from the 1st minute until the finish  DONE tmp img
-                        OVERTIME = 9, # "One of who didn't want to give up", # "Overtime - extra minutes of fight"  #DEATHMATCH_SPECIFIC  DONE
-                        SECOND_OVERTIME_REASON = 10, # "The 2nd overtime!",  # one of who didn't want to give up once more time
-                        HUNDRED_KILLS = 11, # "More than 100 kills", # 100++ kills  DONE tmp img
-                        HUNDRED_DEATHS = 12, # "More than 100 deaths", # 100++ deaths  DONE tmp img
-                        HUNDRED_FRAGS = 13, # "More than 100 frags", # 100++ frags  DONE tmp img
-                        RED_ARMOR_EATER = 14, # "Red armor eater", # 10+ red armors  DONE
-                        GREEN_ARMOR_EATER = 15, # "Green armor eater", # 10+ green armors  DONE
-                        YELLOW_ARMOR_EATER = 16, # "Yellow armor eater", # 10+ yellow armors  DONE
-                        MEGA_HEALTH_EATER = 17, # "Mega healths eater", # 10+ mega healths  DONE
-                        RED_ARMOR_ALLERGY = 18, # "Red armor allergy", # No red armors  DONE
-                        GREEN_ARMOR_ALLERGY = 19, # "Green armor allergy", # No green armors  DONE
-                        YELLOW_ARMOR_ALLERGY = 20, # "Yellow armor allergy", # No yellow armors  DONE
-                        MEGA_HEALTH_ALLERGY = 21, # "Mega healths allergy", # No mega healths  DONE
-                        CHILD_KILLER = 22, # "Child killer", # 10+ spawn frags  DONE
-                        ALWAYS_THE_LAST = 23, # "Always the last", # the last place from the 1st minute until the finish  DONE
-                        ROCKETS_LOVER = 24, # "Rockets lover", # all kills made via rocket launcher  DONE
-                        DUEL_WINNER = 25, # "Duel winner", # duel winner  DONE
-                        SNIPER = 26, # "Sniper", # direct hit > 40  DONE
-                        RAINBOW_FLAG = 27, # "Like rainbow flag - I hope today is not Aug 2",  # 10+ each of armors  DONE
-                        PERSONAL_STALKER = 28, # "Personal stalker", # killed one player more than all others taken together DONE
-                        SELF_DESTRUCTOR = 29, # "Self destructor - the main your enemy is yourself", # suicided more than killed any other player  DONE
-                        OVERTIME_LOOSERS = 30, # "Looooooosers go home", # both the 1st and the 2nd places before overtime are finally below the 2nd place
-                        PHENIX_BIRD = 31, # "Like a Phoenix bird", # won after the last place on the 4th minute
-                        TEAM_BEST_FRIEND_KILLER = 32, # "With friends like that, who needs enemies?" # maximum team kills  DONE
-                        TEAM_MAXIMUM_TEAMDEATHS = 33, # "My friends are THE BEST OF THE BEST!!" # maximum team deaths  DONE
-                        LUMBERJACK = 34, # "Lumberjack" # 3+ axe kills  DONE
-                        ELECTROMASTER = 35, # "Electomaster" # 40%+ and 20+ kills by shaft (thanks to Onanim)  DONE
-                        WHITEWASH = 36, # "Whitewash - full duel victory and total domination" # dry win duel  DONE
-                        FASTER_THAN_BULLET = 37,  # "Faster than bullet"  # streak 5+, 3.0- seconds per kill DONE
-                        DEATH_CHEATER = 38,  # "Death cheater"  # less than 50% of average deaths  DONE
-                        TEAMMATES_FAN = 39,  # "Teammates fan - no team deaths and no team kills"  # no teamkills and no teamdeaths  DONE
-                        NO_SUICIDES = 40, # "I love this life!! No suicides at all"  # no suicides  DONE
-                        UNIVERSAL_SOLDIER = 41, # "Killed players with more than 5 weapons"  DONE
-                        MULTIPLE_PENETRATION = 42, # "Got killed with more than 5 weapons"  DONE
-                        LONG_LIVE_KING = 43, #"Long Live and Prosper Like A King",  # the 1st 60 seconds without deaths  DONE
+AchievementType = enum( LONG_LIVE  = 1, #"Long Live and Prosper",  # the 1st 30 seconds without deaths                                  DONE
+                        SUICIDE_MASTER = 2, # "Suicide Master",   # 2 suicides in a row                                                 DONE
+                        SUICIDE_KING = 3, # "Suicide King",   # 3++ suicides in a row                                                   DONE
+                        DEATH_STREAK_PAIN = 4, # "What do you know about the pain?...", # 10++ death streak                             DONE
+                        GREAT_FINISH = 5, # "Great Finish", # 2+ places up during the last minute                                           #TODO
+                        FINISH_GURU = 6, # "Finish Guru", # 2+ places up during the last minute and win                                 DONE
+                        HORRIBLE_FINISH = 7, # "Horrible Finish - finished to play too early", # -2 places up during the last minute    DONE
+                        ALWAYS_THE_FIRST = 8, # "Always the 1st", # the 1st place from the 1st minute until the finish                  DONE
+                        OVERTIME = 9, # "One of who didn't want to give up", # "Overtime - extra minutes of fight" #DEATHMATCH_SPECIFIC DONE
+                        SECOND_OVERTIME_REASON = 10, # "The 2nd overtime!",  # one of who didn't want to give up once more time             #TODO
+                        HUNDRED_KILLS = 11, # "More than 100 kills", # 100++ kills                                                      DONE tmp img
+                        HUNDRED_DEATHS = 12, # "More than 100 deaths", # 100++ deaths                                                   DONE tmp img
+                        HUNDRED_FRAGS = 13, # "More than 100 frags", # 100++ frags                                                      DONE tmp img
+                        RED_ARMOR_EATER = 14, # "Red armor eater", # 10+ red armors                                                     DONE
+                        GREEN_ARMOR_EATER = 15, # "Green armor eater", # 10+ green armors                                               DONE
+                        YELLOW_ARMOR_EATER = 16, # "Yellow armor eater", # 10+ yellow armors                                            DONE
+                        MEGA_HEALTH_EATER = 17, # "Mega healths eater", # 10+ mega healths                                              DONE
+                        RED_ARMOR_ALLERGY = 18, # "Red armor allergy", # No red armors                                                  DONE
+                        GREEN_ARMOR_ALLERGY = 19, # "Green armor allergy", # No green armors                                            DONE
+                        YELLOW_ARMOR_ALLERGY = 20, # "Yellow armor allergy", # No yellow armors                                         DONE
+                        MEGA_HEALTH_ALLERGY = 21, # "Mega healths allergy", # No mega healths                                           DONE
+                        CHILD_KILLER = 22, # "Child killer", # 10+ spawn frags                                                          DONE
+                        ALWAYS_THE_LAST = 23, # "Always the last", # the last place from the 1st minute until the finish                DONE
+                        ROCKETS_LOVER = 24, # "Rockets lover", # all kills made via rocket launcher                                     DONE
+                        DUEL_WINNER = 25, # "Duel winner", # duel winner                                                                DONE
+                        SNIPER = 26, # "Sniper", # direct hit > 40                                                                      DONE
+                        RAINBOW_FLAG = 27, # "Like rainbow flag - I hope today is not Aug 2",  # 10+ each of armors                     DONE
+                        PERSONAL_STALKER = 28, # "Personal stalker", # killed one player more than all others taken together            DONE
+                        SELF_DESTRUCTOR = 29, # "Self destructor - the main your enemy is yourself", # suicided more than killed any other player               DONE
+                        OVERTIME_LOOSERS = 30, # "Looooooosers go home", # both the 1st and the 2nd places before overtime are finally below the 2nd place          #TODO
+                        PHENIX_BIRD = 31, # "Like a Phoenix bird", # won after the last place in the middle of the game                 #TODO
+                        TEAM_BEST_FRIEND_KILLER = 32, # "With friends like that, who needs enemies?" # maximum team kills               DONE
+                        TEAM_MAXIMUM_TEAMDEATHS = 33, # "My friends are THE BEST OF THE BEST!!" # maximum team deaths                   DONE
+                        LUMBERJACK = 34, # "Lumberjack" # 3+ axe kills                                                                  DONE
+                        ELECTROMASTER = 35, # "Electomaster" # 40%+ and 20+ kills by shaft (thanks to Onanim)                           DONE
+                        WHITEWASH = 36, # "Whitewash - full duel victory and total domination" # dry win duel                           DONE
+                        FASTER_THAN_BULLET = 37,  # "Faster than bullet"  # streak 5+, 3.0- seconds per kill                            DONE
+                        DEATH_CHEATER = 38,  # "Death cheater"  # less than 50% of average deaths                                       DONE
+                        TEAMMATES_FAN = 39,  # "Teammates fan - no team deaths and no team kills"  # no teamkills and no teamdeaths     DONE
+                        NO_SUICIDES = 40, # "I love this life!! No suicides at all"  # no suicides                                      DONE
+                        UNIVERSAL_SOLDIER = 41, # "Killed players with more than 5 weapons"                                             DONE
+                        MULTIPLE_PENETRATION = 42, # "Got killed with more than 5 weapons"                                              DONE
+                        LONG_LIVE_KING = 43, #"Long Live and Prosper Like A King",  # the 1st 60 seconds without deaths                 DONE
                         HULK_SMASH = 44, #"Hulk SMASH!!" : "frags number {0:d} much more that the 2nd place({1:d})"  # the 1st place frags is twice bigger than the 2nd place  DONE
-                        KILL_STREAK = 45, # "Killing without rest" # 15+ kill streak   DONE
-                        CHILD_LOVER = 46, # "Children are the flowers of our lives - no spawn frags" DONE
-                        GL_LOVER = 47,  # "Grenades is my passion!"  # 45%+ and 20+ kills by gl  DONE
-                        BALANCED_PLAYER = 48, # "Balanced player - no one wants to lose: all %d duels are draws"  DONE
-                        LIKE_AN_ANGEL = 49,  # "Like an angel - NO damage to teammates at all!!"  #XML_SPECIFIC    DONE
+                        KILL_STREAK = 45, # "Killing without rest" # 15+ kill streak                                                    DONE
+                        CHILD_LOVER = 46, # "Children are the flowers of our lives - no spawn frags"                                    DONE
+                        GL_LOVER = 47,  # "Grenades is my passion!"  # 45%+ and 20+ kills by gl                                         DONE
+                        BALANCED_PLAYER = 48, # "Balanced player - no one wants to lose: all %d duels are draws"                        DONE
+                        LIKE_AN_ANGEL = 49,  # "Like an angel - NO damage to teammates at all!!"  #XML_SPECIFIC                         DONE
                         COMBO_DOUBLE_KILL = 50,  # "Two budgies slain with but a single missile" : "killed %s and %s with one %s shot!"   #two kills with on shot  #XML_SPECIFIC    DONE
-                        COMBO_MUTUAL_KILL = 51,  # "Fight to the death!!" : "fought bravely until the last blood drop %d times"     3+ mutual kills   #XML_SPECIFIC    DONE
+                        COMBO_MUTUAL_KILL = 51,  # "Fight to the death!!" : "fought bravely until the last blood drop %d times"     3+ mutual kills   #XML_SPECIFIC                 DONE
                         COMBO_KAMIKAZE = 52,  # "Kamikaze - one way ticket!!" : "The sun on the wings - move forward! For the last time, the enemy will see the sunrise! One plane for one enemy! %d times..."  3+ suicide+kill   #XML_SPECIFIC    DONE
+                        COMBO_TRIPLE_KILL = 53,  # "Three enemies with a single shot" : "killed %s, %s and %s with one %s shot!"   #three kills with on shot  #XML_SPECIFIC    DONE
                         
                                             )
 
@@ -3314,6 +3320,8 @@ class Achievement:
             return "Fight to the death!!"
         if self.achtype == AchievementType.COMBO_KAMIKAZE:
             return "Kamikaze - one way ticket!!"
+        if self.achtype == AchievementType.COMBO_TRIPLE_KILL:
+            return "Three enemies with a single shot"            
 
     # AchievementLevel = enum(UNKNOWN=0, BASIC_POSITIVE=1, BASIC_NEGATIVE=2, ADVANCE_POSITIVE=3, ADVANCE_NEGATIVE=5, RARE_POSITIVE=6, RARE_NEGATIVE=7, ULTRA_RARE=8)
     def level(self):
@@ -3378,67 +3386,85 @@ class Achievement:
             
         if self.achtype == AchievementType.HUNDRED_FRAGS or \
            self.achtype == AchievementType.RAINBOW_FLAG  or \
-           self.achtype == AchievementType.LUMBERJACK:
+           self.achtype == AchievementType.LUMBERJACK    or \
+           self.achtype == AchievementType.COMBO_TRIPLE_KILL:
             return AchievementLevel.ULTRA_RARE            
 
     @staticmethod    
     def getBorderColor(achlevel):
-        if achlevel == AchievementLevel.BASIC_POSITIVE:
+        # if achlevel == AchievementLevel.BASIC_POSITIVE:
+            # return "green"
+        # if achlevel == AchievementLevel.BASIC_NEGATIVE:
+            # return "#b32f25"  # dark red
+        # if achlevel == AchievementLevel.ADVANCE_POSITIVE:
+            # return "#09e9ed"  
+        # if achlevel == AchievementLevel.ADVANCE_NEGATIVE:
+            # return "#f02313"  # light red
+        # if achlevel == AchievementLevel.RARE_POSITIVE:
+            # return "gold"
+        # if achlevel == AchievementLevel.RARE_NEGATIVE:
+            # return "#391366"  # dark purple
+        # if achlevel == AchievementLevel.ULTRA_RARE:
+            # return "#cd0ceb"  # purple
+            
+        if achlevel == AchievementLevel.BASIC_POSITIVE or \
+           achlevel == AchievementLevel.BASIC_NEGATIVE:
             return "green"
-        if achlevel == AchievementLevel.BASIC_NEGATIVE:
-            return "#b32f25"  # dark red
-        if achlevel == AchievementLevel.ADVANCE_POSITIVE:
+            
+        if achlevel == AchievementLevel.ADVANCE_POSITIVE or \
+           achlevel == AchievementLevel.ADVANCE_NEGATIVE:
             return "#09e9ed"  
-        if achlevel == AchievementLevel.ADVANCE_NEGATIVE:
-            return "#f02313"  # light red
-        if achlevel == AchievementLevel.RARE_POSITIVE:
+        
+        if achlevel == AchievementLevel.RARE_POSITIVE or \
+           achlevel == AchievementLevel.RARE_NEGATIVE:
             return "gold"
-        if achlevel == AchievementLevel.RARE_NEGATIVE:
-            return "#391366"  # dark purple
+
         if achlevel == AchievementLevel.ULTRA_RARE:
-            return "#cd0ceb"  # purple
+            return "#cd0ceb"  # purple            
 
     @staticmethod
-    def generateAchievementsLevelLegendTable():
+    def generateAchievementsLevelLegendTable(oneLine = True):
         achLevelsHtmlTable = HTML.Table(border="0", cellspacing="0", style="font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 8pt;")
-        # achLevelsHtmlTable.rows.append( HTML.TableRow(cells=[ 
-                                    # HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.BASIC_NEGATIVE)),
-                                    # HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.BASIC_POSITIVE)),
-                                    # HTML.TableCell("Basic level") ] ))
-        # achLevelsHtmlTable.rows.append( HTML.TableRow(cells=[ 
-                                    # HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.ADVANCE_NEGATIVE)),
-                                    # HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.ADVANCE_POSITIVE)),
-                                    # HTML.TableCell("Advanced level") ] ))
-        # achLevelsHtmlTable.rows.append( HTML.TableRow(cells=[ 
-                                    # HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.RARE_NEGATIVE)),
-                                    # HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.RARE_POSITIVE)),
-                                    # HTML.TableCell("Rare level") ] ))
-        # achLevelsHtmlTable.rows.append( HTML.TableRow(cells=[ 
-                                    # HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.ULTRA_RARE)),
-                                    # HTML.TableCell("<pre> </pre>"),
-                                    # HTML.TableCell("UltraRare level") ] ))
 
-        achLevelsHtmlTable.rows.append( HTML.TableRow(cells=[ 
-                                    HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.BASIC_NEGATIVE)),
-                                    HTML.TableCell(" "),
-                                    HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.BASIC_POSITIVE)),
-                                    HTML.TableCell("Basic level"),
-                                    HTML.TableCell("<pre>   </pre>"),
-        
-                                    HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.ADVANCE_NEGATIVE)),
-                                    HTML.TableCell(" "),
-                                    HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.ADVANCE_POSITIVE)),
-                                    HTML.TableCell("Advanced level"),
-                                    HTML.TableCell("<pre>   </pre>"),
-        
-                                    HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.RARE_NEGATIVE)),
-                                    HTML.TableCell(" "),
-                                    HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.RARE_POSITIVE)),
-                                    HTML.TableCell("Rare level"),
-                                    HTML.TableCell("<pre>   </pre>"),
-        
-                                    HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.ULTRA_RARE)),                                    
-                                    HTML.TableCell("UltraRare level") ] ))
+        if oneLine:
+            achLevelsHtmlTable.rows.append( HTML.TableRow(cells=[ 
+                                HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.BASIC_NEGATIVE)),
+                                HTML.TableCell("Basic level"),
+                                HTML.TableCell("<pre>   </pre>"),
+    
+                                HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.ADVANCE_NEGATIVE)),
+                                HTML.TableCell("Advanced level"),
+                                HTML.TableCell("<pre>   </pre>"),
+    
+                                HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.RARE_NEGATIVE)),                                
+                                HTML.TableCell("Rare level"),
+                                HTML.TableCell("<pre>   </pre>"),
+    
+                                HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.ULTRA_RARE)),                                    
+                                HTML.TableCell("UltraRare level") ] ))
+
+        else:
+            achLevelsHtmlTable.rows.append( HTML.TableRow(cells=[ 
+                                        HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.BASIC_NEGATIVE)),
+                                        HTML.TableCell(" "),
+                                        HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.BASIC_POSITIVE)),
+                                        HTML.TableCell("Basic level"),
+                                        HTML.TableCell("<pre>   </pre>"),
+            
+                                        HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.ADVANCE_NEGATIVE)),
+                                        HTML.TableCell(" "),
+                                        HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.ADVANCE_POSITIVE)),
+                                        HTML.TableCell("Advanced level"),
+                                        HTML.TableCell("<pre>   </pre>"),
+            
+                                        HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.RARE_NEGATIVE)),
+                                        HTML.TableCell(" "),
+                                        HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.RARE_POSITIVE)),
+                                        HTML.TableCell("Rare level"),
+                                        HTML.TableCell("<pre>   </pre>"),
+            
+                                        HTML.TableCell("<pre> </pre>", bgcolor=Achievement.getBorderColor(AchievementLevel.ULTRA_RARE)),                                    
+                                        HTML.TableCell("UltraRare level") ] ))
                                     
         return str(achLevelsHtmlTable)
                     
@@ -3531,10 +3557,12 @@ class Achievement:
             return path + "ach_combo_mutual_kill.png"
         if self.achtype == AchievementType.COMBO_KAMIKAZE:
             return path + "ach_combo_kamikaze.png"
-
-        # temp images
         if self.achtype == AchievementType.ALWAYS_THE_FIRST:
             return path + "ach_always_the_first.jpg"
+        if self.achtype == AchievementType.COMBO_TRIPLE_KILL:
+            return path + "ach_combo_triple_kill.png"
+
+        # temp images
         if self.achtype == AchievementType.HUNDRED_KILLS:
             return path + "ach_100_kills_TMP.jpg"
         if self.achtype == AchievementType.HUNDRED_DEATHS:

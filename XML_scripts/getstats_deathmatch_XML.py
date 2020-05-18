@@ -716,7 +716,7 @@ for element in elements:
             ezstatslib.logError("ERROR: unknown weapon: %s\n" % (weap))
             if weap == "lg_beam" or weap == "lg_dis":
                 weap = "lg"
-            elif weap == "stomp":
+            elif weap == "stomp" or weap == "squish" or weap == "lava":
                 weap = "other"  # TODO fall on the player  # TODO ULTRA RARE ACH
             else:
                 exit(0)
@@ -760,7 +760,7 @@ for element in elements:
             ezstatslib.logError("ERROR: unknown weapon: %s\n" % (weap))
             if weap == "lg_beam":
                 weap = "lg"
-            elif weap == "fall" or weap == "squish":
+            elif weap == "fall" or weap == "squish" or weap == "lava":
                 who = whom
                 weap = "other"  # TODO world -> whom
             elif weap == "stomp":
@@ -915,6 +915,26 @@ for i in xrange(len(elementsByTime)):
 
     elif deaths >= 3:
         # TODO
+        if deaths == 3:
+            attacker = ""            
+            isAttackerTheSame = True
+            targets = []
+            wps = []
+            for j in xrange(len(elementsByTime[i][1])):
+                if isinstance(elementsByTime[i][1][j], DeathElement):
+                    targets.append(elementsByTime[i][1][j].target)
+                    wps.append(elementsByTime[i][1][j].type)
+                    if attacker == "":
+                        attacker = elementsByTime[i][1][j].attacker
+                    else:
+                        if attacker != elementsByTime[i][1][j].attacker:
+                            isAttackerTheSame = False
+
+            if isAttackerTheSame:
+                for pl in allplayers:
+                    if pl.name == attacker:
+                        pl.triple_kills.append([tt,targets[0],targets[1],targets[2],wps[0]])
+        
         resStr = ""
         deathNum = 1
         for j in xrange(len(elementsByTime[i][1])):
@@ -1163,6 +1183,10 @@ for pl in allplayers:
     pl.calculateAchievements(matchProgress, powerUpsStatus, headToHead, isTeamGame = False)
     
 ezstatslib.calculateCommonAchievements(allplayers, headToHead, isTeamGame = False)
+
+# sort by level
+for pl in allplayers:
+    pl.achievements = sorted(pl.achievements, key=lambda x: (x.achlevel), reverse=False)
     
 # generate output string
 resultString = ""
@@ -2327,16 +2351,24 @@ def writeHtmlWithScripts(f, sortedPlayers, resStr):
     
     # highcharts RL skill -->
     # div
-    rlSkillDivStr = ezstatslib.HTML_SCRIPT_HIGHCHARTS_RL_SKILL_DIV_AND_TABLE_TAG
-    tableRowsStr = ""
-    percentsVal = 100 / len(allplayersByFrags)
-    for pl in allplayersByFrags:
-       tRowStr = ezstatslib.HTML_SCRIPT_HIGHCHARTS_RL_SKILL_TABLE_ROW
-       tRowStr = tRowStr.replace("PLAYERNAME", ezstatslib.escapePlayerName(pl.name))
-       tRowStr = tRowStr.replace("TD_WIDTH", "%d" % (percentsVal))
-       tableRowsStr += tRowStr
-       
-    rlSkillDivStr = rlSkillDivStr.replace("TABLE_ROWS", tableRowsStr)
+    rlSkillDivStrs = ""
+    rowsCount = (len(allplayersByFrags) / 3) + (0 if len(allplayersByFrags) % 3 == 0 else 1)
+    
+    print "rowsCount", rowsCount
+    
+    for rowNum in xrange(rowsCount):
+        rlSkillDivStr = ezstatslib.HTML_SCRIPT_HIGHCHARTS_RL_SKILL_DIV_AND_TABLE_TAG
+        tableRowsStr = ""
+        currentRowCount = 3 if rowNum < (rowsCount-1) or len(allplayersByFrags) % 3 == 0 else len(allplayersByFrags) % 3
+        percentsVal = 100 / currentRowCount
+        for j in xrange(currentRowCount):
+           tRowStr = ezstatslib.HTML_SCRIPT_HIGHCHARTS_RL_SKILL_TABLE_ROW
+           tRowStr = tRowStr.replace("PLAYERNAME", ezstatslib.escapePlayerName(allplayersByFrags[j+rowNum*3].name))
+           tRowStr = tRowStr.replace("TD_WIDTH", "%d" % (percentsVal))
+           tableRowsStr += tRowStr
+           
+        rlSkillDivStr = rlSkillDivStr.replace("TABLE_ROWS", tableRowsStr)
+        rlSkillDivStrs += rlSkillDivStr
     
     for pl in allplayersByFrags:
         rlSkillFunctionStr = (ezstatslib.HTML_SCRIPT_HIGHCHARTS_RL_SKILL_FUNCTION_TEMPLATE).replace("PLAYERNAME", ezstatslib.escapePlayerName(pl.name))    
@@ -2384,7 +2416,7 @@ def writeHtmlWithScripts(f, sortedPlayers, resStr):
     resStr = resStr.replace("POWER_UPS_TIMELINE_PLACE", powerUpsTimelineDivStr)
     resStr = resStr.replace("POWER_UPS_TIMELINE_VER2_PLACE", powerUpsTimelineVer2DivStr)
     resStr = resStr.replace("HIGHCHART_PLAYERS_RANK_PROGRESS_PLACE", ezstatslib.HTML_SCRIPT_HIGHCHARTS_DEATHMATCH_PLAYERS_RANK_PROGRESS_DIV_TAG)    
-    resStr = resStr.replace("HIGHCHART_RL_SKILL_PLACE", rlSkillDivStr)
+    resStr = resStr.replace("HIGHCHART_RL_SKILL_PLACE", rlSkillDivStrs)
     
     f.write(resStr)
     
@@ -2482,7 +2514,7 @@ otherFiles = []
 
 for fname in files:
     if "html" in fname and len(fname) != 0 and fname[0] == "N":
-        logHeadStr = subprocess.check_output(["head.exe", "%s" % (ezstatslib.REPORTS_FOLDER + fname)])
+        logHeadStr = subprocess.check_output(["head.exe", "%s" % (ezstatslib.REPORTS_FOLDER + fname)])  # TODO check for win vs. linux
         if "GAME_PLAYERS" in logHeadStr:
             playsStr = logHeadStr.split("GAME_PLAYERS")[1].split("-->")[0]
                 
@@ -2632,7 +2664,7 @@ for el in sorted_filesMap: # el: (datetime.datetime(2016, 5, 5, 0, 0), [[], [ ['
         # logf = open("../" + alllist[i][0], "r")
         # linesCnt = 0        
         
-        logHeadStr = subprocess.check_output(["head.exe", "%s" % (ezstatslib.REPORTS_FOLDER + alllist[i][0])])
+        logHeadStr = subprocess.check_output(["head.exe", "%s" % (ezstatslib.REPORTS_FOLDER + alllist[i][0])])  # TODO check for win vs. linux
         if "GAME_PLAYERS" in logHeadStr:
             playsStr = logHeadStr.split("GAME_PLAYERS")[1].split("-->")[0]
                 
@@ -2840,7 +2872,7 @@ str += "]"
 
 jsonPath =  filePathFull.replace(ezstatslib.REPORTS_FOLDER, ezstatslib.REPORTS_FOLDER + "json/")
 jsonPath += ".json"
-jsonf = open(jsonPath, "w")
+jsonf = open(jsonPath, "w")  # TODO check and create folder if needed
 jsonf.write(str)
 jsonf.close()
 	

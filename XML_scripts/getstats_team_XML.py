@@ -642,7 +642,7 @@ for element in elements:
             ezstatslib.logError("ERROR: unknown weapon: %s\n" % (weap))
             if weap == "lg_beam" or weap == "lg_dis":
                 weap = "lg"
-            elif weap == "stomp":
+            elif weap == "stomp" or weap == "lava":
                 weap = "other"  # TODO fall on the player  # TODO ULTRA RARE ACH
             else:
                 exit(0)
@@ -709,7 +709,7 @@ for element in elements:
             ezstatslib.logError("ERROR: unknown weapon: %s\n" % (weap))
             if weap == "lg_beam":
                 weap = "lg"
-            elif weap == "fall" or weap == "squish":
+            elif weap == "fall" or weap == "squish" or weap == "lava":
                 who = whom
                 weap = "other"  # TODO world -> whom
             elif weap == "stomp":
@@ -867,6 +867,41 @@ for i in xrange(len(elementsByTime)):
     
     elif deaths >= 3:
         # TODO
+        if deaths == 3:
+            attacker = ""            
+            isAttackerTheSame = True
+            targets = []
+            wps = []
+            for j in xrange(len(elementsByTime[i][1])):
+                if isinstance(elementsByTime[i][1][j], DeathElement):
+                    targets.append(elementsByTime[i][1][j].target)
+                    wps.append(elementsByTime[i][1][j].type)
+                    if attacker == "":
+                        attacker = elementsByTime[i][1][j].attacker
+                    else:
+                        if attacker != elementsByTime[i][1][j].attacker:
+                            isAttackerTheSame = False
+
+            if isAttackerTheSame:
+                attackerTeam = ""
+                targetsTeam = ""
+                for pl in allplayers:
+                    for targ in targets:
+                        if pl.name == attacker:
+                            attackTeam = pl.teamname
+                    
+                        if pl.name == targ:
+                            if targetsTeam == "":
+                                targetsTeam = pl.teamname
+                            else:
+                                if targetsTeam != pl.teamname:
+                                    targetsTeam = "-1"
+
+                if targetsTeam != "-1" and targetsTeam != "" and targetsTeam != attackTeam:
+                    for pl in allplayers:
+                        if pl.name == attacker:
+                            pl.triple_kills.append([tt,targets[0],targets[1],targets[2],wps[0]])
+        
         resStr = ""
         deathNum = 1
         for j in xrange(len(elementsByTime[i][1])):
@@ -1227,8 +1262,10 @@ for pl in allplayers:
 
 ezstatslib.calculateCommonAchievements(allplayers, headToHead, isTeamGame = True, headToHeadDamage = headToHeadDamage)
 
-
-
+# sort by level
+for pl in allplayers:
+    pl.achievements = sorted(pl.achievements, key=lambda x: (x.achlevel), reverse=False)
+    
 # generate output string
 resultString = ""
 
@@ -1496,20 +1533,20 @@ for pl in sorted(players2, key=attrgetter("kills"), reverse=True):
 
 # H2HDamage stats
 resultString += "\n"
-resultString += "Head-to-Head stats (who :: whom)\n"
+resultString += "Head-to-HeadDamage stats (who :: whom)\n"
 resultString += "[%s]\n" % (team1.name)
 for pl in sorted(players1, key=attrgetter("kills"), reverse=True):
     resStr = ""
     for el in sorted(headToHeadDamage[pl.name], key=lambda x: x[1], reverse=True):
         resStr += "%s%s(%d)" % ("" if resStr == "" else ", ", el[0], el[1])
-    resultString += "{0:20s} {1:3d} :: {2:100s}\n".format(pl.name, pl.kills, resStr)
+    resultString += "{0:20s} {1:3d} - {2:3d} :: {3:100s}\n".format(pl.name, pl.gvn, pl.tkn, resStr)
 resultString += "\n"
 resultString += "[%s]\n" % (team2.name)
 for pl in sorted(players2, key=attrgetter("kills"), reverse=True):
     resStr = ""
     for el in sorted(headToHeadDamage[pl.name], key=lambda x: x[1], reverse=True):
         resStr += "%s%s(%d)" % ("" if resStr == "" else ", ", el[0], el[1])
-    resultString += "{0:20s} {1:3d} :: {2:100s}\n".format(pl.name, pl.kills, resStr)	
+    resultString += "{0:20s} {1:3d} - {2:3d} :: {3:100s}\n".format(pl.name, pl.gvn, pl.tkn, resStr)
 	
     
 # Players duels table
@@ -1797,9 +1834,14 @@ def writeHtmlWithScripts(f, teams, resStr):
 
         rowLines += "data: [[0,0]"
 
-        for minEl in matchProgressDictEx2:
-            rowLines += ",[%d,%d]" % (minEl[tt.name][0], minEl[tt.name][1])  # TODO format, now is 0.500000
-
+        curSec = -1
+        curSevVal = -1
+        for minEl in matchProgressDictEx2:                        
+            if curSec == -1 or curSec != int(minEl[tt.name][0]):
+                curSec = int(minEl[tt.name][0])
+                curSevVal = minEl[tt.name][1]                
+            rowLines += ",[%d,%d]" % (minEl[tt.name][0], curSevVal)            
+            
         rowLines += "]\n"
 
     highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("ADD_STAT_ROWS", rowLines)
