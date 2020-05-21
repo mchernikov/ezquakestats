@@ -437,7 +437,7 @@ def isTeamKill(element):
                 targetTeam = pl.teamname
 
         if attackerTeam == "" or targetTeam == "":
-            ezstatslib.logError("ERROR isTeamKill: death.attacker: %s, death.target" % (death.attacker, death.target))
+            ezstatslib.logError("ERROR isTeamKill: attacker: %s, target: %s" % (element.attacker, element.target))
             exit(-1)
         
         return attackerTeam == targetTeam        
@@ -540,6 +540,10 @@ for element in elements:
                 # ezstatslib.logError("ERROR: overtime calculation: currentMinute: %d, minutesPlayedXML: %d, allplayersByFrags[0].frags(): %d, allplayersByFrags[1].frags(): %d" % \
                  # (currentMinute, minutesPlayedXML, allplayersByFrags[0].frags(), allplayersByFrags[1].frags()))
                
+    # skip Damage and Death elements with target=None (door which is opened by the shot)
+    if (isinstance(element, DeathElement) or isinstance(element, DamageElement)) and element.target is None:
+        continue
+               
     # telefrag
     if isinstance(element, DeathElement) and element.type == "tele1":        
         who = element.attacker
@@ -606,7 +610,7 @@ for element in elements:
         continue    
         
     # power ups
-    if isinstance(element, PickMapItemElement) and (element.isArmor or element.isMH):
+    if isinstance(element, PickMapItemElement) and (element.isArmor or element.isHealth):
         checkname = element.player
         if element.isMH:
             pwr = "mh"
@@ -624,6 +628,9 @@ for element in elements:
                 exec("pl.inc%s(%d,%d)" % (pwr, currentMinute, currentMatchTime))
                 exec("pl.%s += 1" % (pwr))
                 isFound = True
+                
+                pl.addLifetimeItem(element)
+                
                 break;
         if not isFound:
             ezstatslib.logError("ERROR: powerupDetection: no playername %s\n" % (checkname))
@@ -723,6 +730,7 @@ for element in elements:
             for pl in allplayers:
                 if pl.name == who:
                     exec("pl.%s_damage_self += %d" % (weap, value))
+                    pl.addLifetimeItem(element)
         else:
             isTK = isTeamKill(element)
         
@@ -747,6 +755,8 @@ for element in elements:
                     exec("pl.%s_damage_tkn += %d" % (weap, value))
                     exec("pl.%s_damage_tkn_cnt += 1" % (weap))
                     isFoundWhom = True
+                    
+                    pl.addLifetimeItem(element)
             
         fillH2HDamage(who,whom,value,currentMinute)
     
@@ -1266,6 +1276,10 @@ ezstatslib.calculateCommonAchievements(allplayers, headToHead, isTeamGame = True
 for pl in allplayers:
     pl.achievements = sorted(pl.achievements, key=lambda x: (x.achlevel), reverse=False)
     
+# remove elements with one timestamp - the last one for same time should be left    
+for pl in allplayers:
+    pl.correctLifetime(minutesPlayedXML)    
+    
 # generate output string
 resultString = ""
 
@@ -1276,21 +1290,17 @@ resultString += "\n"
 
 resultString += "teams:\n"
 
-s1 = ""
-for pl in players1:
-    sign = "" if s1 == "" else ", "
-    if s1 == "":
-        s1 = "[%s]: " % (pl.teamname)
-    s1 += "%s%s" % (sign, pl.name)
-resultString += s1 + "\n"
+def teamPlayersToString(players):
+    res = ""
+    for pl in players:
+        sign = "" if res == "" else ", "
+        if res == "":
+            res = "[%s]: " % (pl.teamname)
+        res += "%s%s" % (sign, pl.name)
+    return res
 
-s2 = ""
-for pl in players2:
-    sign = "" if s2 == "" else ", "
-    if s2 == "":
-        s2 = "[%s]: " % (pl.teamname)
-    s2 += "%s%s" % (sign, pl.name)
-resultString += s2 + "\n"
+resultString += teamPlayersToString(players1) + "\n"
+resultString += teamPlayersToString(players2) + "\n"
 
 # if options.withScripts:
 #     resultString += "</pre>MATCH_RESULTS_PLACE\n<pre>"
@@ -1509,6 +1519,9 @@ resultString += "\n"
 resultString += "{0:23s} kills  {1:3d} :: {2:100s}\n".format("[%s]" % (team2.name), team2.kills,  team2.getWeaponsKills(team2.kills,   weaponsCheck))
 resultString += "{0:23s} deaths {1:3d} :: {2:100s}\n".format("",                    team2.deaths, team2.getWeaponsDeaths(team2.deaths, weaponsCheck))
 resultString += "\n"
+
+if options.withScripts:    
+    resultString += "\nHIGHCHART_PLAYER_LIFETIME_PLACE\n"
 
 # if len(disconnectedplayers) != 0:
     # resultString += "\n"
@@ -1867,6 +1880,64 @@ def writeHtmlWithScripts(f, teams, resStr):
     f.write(highchartsBattleProgressFunctionStr)
     # <-- highcharts battle extended progress
 
+    # highcharts players lifetime -->
+    playersLifetimeDivStrs = ""
+    for pl in allplayers:
+        playersLifetimeDivStrs += ezstatslib.HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_DIV_TAG.replace("PLAYERNAME", ezstatslib.escapePlayerName(pl.name))
+        playersLifetimeDivStrs += "<br>\n"
+    
+    highchartsPlayerLifetimeFunctionStrs = ""
+    for pl in allplayersByFrags:
+        highchartsPlayerLifetimeFunctionStr = (ezstatslib.HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_FUNCTION).replace("PLAYERNAME", ezstatslib.escapePlayerName(pl.name))    
+        
+        highchartsPlayerLifetimeFunctionStr = highchartsPlayerLifetimeFunctionStr.replace("CHART_TITLE", "%s Lifetime" % (ezstatslib.escapePlayerName(pl.name)))
+    
+        tickPositions = ""
+        for k in xrange(matchMinutesCnt*60+1):
+            if k % 30 == 0:
+                tickPositions += "%d," % (k)
+                    
+        xAxisLabels = ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_TICK_POSITIONS
+        xAxisLabels = xAxisLabels.replace("TICK_POSITIONS_VALS", tickPositions)
+        
+        highchartsPlayerLifetimeFunctionStr = highchartsPlayerLifetimeFunctionStr.replace("EXTRA_XAXIS_OPTIONS", xAxisLabels)
+    
+        healthRows = ""
+        armorRows = ""
+        deathLines = ""
+        for lt in pl.lifetime:
+            if lt.deathType != ezstatslib.PlayerLifetimeDeathType.NONE:
+                deathLine = ezstatslib.HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_DEATH_LINE_TEMPLATE.replace("LINE_VALUE", str(lt.time))
+                
+                lineColor = ""
+                if lt.deathType == ezstatslib.PlayerLifetimeDeathType.COMMON:
+                    lineColor = "red"
+                elif lt.deathType == ezstatslib.PlayerLifetimeDeathType.SUICIDE:
+                    lineColor = "green"
+                elif lt.deathType == ezstatslib.PlayerLifetimeDeathType.TEAM_KILL:
+                    lineColor = "purple"
+                else:
+                    lineColor = "gray"
+                    
+                deathLine = deathLine.replace("LINE_COLOR", lineColor)
+                deathLines += deathLine
+                
+            else:
+                healthRows += "[%f,%d]," % (lt.time,lt.health)
+                armorRows  += "[%f,%d]," % (lt.time,lt.armor)
+            
+        highchartsPlayerLifetimeFunctionStr = highchartsPlayerLifetimeFunctionStr.replace("HEALTH_ROWS", healthRows)
+        highchartsPlayerLifetimeFunctionStr = highchartsPlayerLifetimeFunctionStr.replace("ARMOR_ROWS", armorRows)
+        highchartsPlayerLifetimeFunctionStr = highchartsPlayerLifetimeFunctionStr.replace("DEATH_LINES", deathLines)
+    
+        highchartsPlayerLifetimeFunctionStrs += highchartsPlayerLifetimeFunctionStr
+
+    # # tooltip style
+    # highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("TOOLTIP_STYLE", ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_TOOLTIP_SORTED)
+                
+    f.write(highchartsPlayerLifetimeFunctionStrs)
+    # <-- highcharts highcharts players lifetime     
+    
     # highcharts teams battle progress -->
     matchMinutesCnt = len(matchProgressDict)
 
@@ -2234,7 +2305,7 @@ def writeHtmlWithScripts(f, teams, resStr):
 
     matchResultsStr = ezstatslib.HTML_SCRIPT_TEAM_RESULTS_FUNCTION
 
-    matchResultsStr = matchResultsStr.replace("ADD_HEADER_ROW", "['', '%s',{ role: 'annotation'},{ role: 'style'},'%s',{ role: 'annotation'},{role: 'style'}],\n" % (teams[0].name, teams[1].name))
+    matchResultsStr = matchResultsStr.replace("ADD_HEADER_ROW", "['', '%s',{ role: 'annotation'},{ role: 'style'},{ role: 'tooltip'},'%s',{ role: 'annotation'},{role: 'style'},{ role: 'tooltip'}],\n" % (teams[0].name, teams[1].name))
 
     color1 = ""
     color2 = ""
@@ -2248,7 +2319,9 @@ def writeHtmlWithScripts(f, teams, resStr):
         color1 = "red"
         color2 = "blue"
 
-    matchResultsStr = matchResultsStr.replace("ADD_STATS_ROWS", "['', %d,'%d','color: %s', %d,'%d','color: %s'],\n" % (teams[0].frags(), teams[0].frags(), color1, teams[1].frags(), teams[1].frags(), color2))
+    matchResultsStr = matchResultsStr.replace("ADD_STATS_ROWS", "['', %d,'%d','color: %s', '%s', %d,'%d','color: %s', '%s'],\n" % \
+                                                   (teams[0].frags(), teams[0].frags(), color1, teamPlayersToString(players1), \
+                                                    teams[1].frags(), teams[1].frags(), color2, teamPlayersToString(players2)) )
 
     f.write(matchResultsStr)
     # <-- match results
@@ -2314,6 +2387,8 @@ def writeHtmlWithScripts(f, teams, resStr):
     # resStr = resStr.replace("MATCH_RESULTS_PLACE", ezstatslib.HTML_SCRIPT_HIGHCHARTS_MATCH_RESULTS_DIV_TAG)
     resStr = resStr.replace("TEAM_RESULTS", ezstatslib.HTML_TEAM_RESULTS_FUNCTION_DIV_TAG)
     resStr = resStr.replace("POWER_UPS_TIMELINE_VER2_PLACE", powerUpsTimelineVer2DivStr)
+    
+    resStr = resStr.replace("HIGHCHART_PLAYER_LIFETIME_PLACE", playersLifetimeDivStrs)
 
     f.write(resStr)
 

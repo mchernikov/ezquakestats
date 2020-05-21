@@ -37,7 +37,7 @@ possibleColors = [HtmlColor.COLOR_RED,
                   HtmlColor.COLOR_CYAN,
                   HtmlColor.COLOR_MAGENTA]
 
-CURRENT_VERSION = "1.07"
+CURRENT_VERSION = "1.08"
                   
 LOG_TIMESTAMP_DELIMITER = " <-> "
 
@@ -322,7 +322,7 @@ HTML_SCRIPT_TEAM_RESULTS_FUNCTION = \
 "ADD_STATS_ROWS" \
 "      ]);\n" \
 "      var options = {\n" \
-"        title: '',\n" \
+"        title: 'Game score',\n" \
 "        chartArea: {width: '100%'},\n" \
 "        hAxis: {\n" \
 "          title: '',\n" \
@@ -331,6 +331,11 @@ HTML_SCRIPT_TEAM_RESULTS_FUNCTION = \
 "        },\n" \
 "        isStacked: 'relative',\n" \
 "        legend: 'none',\n" \
+"animation:{\n" \
+"        duration: 500,\n" \
+"        easing: 'out',\n" \
+"        startup: true\n" \
+"      },\n" \
 "   annotations: {\n" \
 "    textStyle: {\n" \
 "      fontName: 'Times-Roman',\n" \
@@ -1507,6 +1512,8 @@ HTML_BODY_FOLDING_SCRIPT = \
   "<script src=\"https://code.highcharts.com/highcharts-3d.js\"></script>\n" \
   "<script src=\"https://code.highcharts.com/modules/exporting.js\"></script>\n" \
   "<script src=\"https://code.highcharts.com/modules/accessibility.js\"></script>\n" \
+  "<script src=\"https://code.highcharts.com/modules/series-label.js\"></script>\n" \
+  "<script src=\"https://code.highcharts.com/modules/export-data.js\"></script>\n" \
   "<script type='text/javascript'>\n" \
   "  var timelineSliderOnChange = function() { drawAllStreakTimelines(timelineSliderObj.getValue()); console.log(timelineSliderObj.getValue()) }\n" \
   "  var timelineSliderObj = $('#timeline_slider').slider({\n" \
@@ -1935,6 +1942,205 @@ HTML_SCRIPT_HIGHCHARTS_RL_SKILL_FUNCTION_TEMPLATE = \
 
 # =========================================================================================================================================================
   
+HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_FUNCTION = \
+"$(function () {\n" \
+"Highcharts.theme = {\n" \
+"   chart: {\n" \
+"      backgroundColor: null,\n" \
+"      style: {\n" \
+"         fontFamily: \"Dosis, sans-serif\"\n" \
+"      }\n" \
+"   },\n" \
+"   title: {\n" \
+"      style: {\n" \
+"         fontSize: '16px',\n" \
+"         fontWeight: 'bold',\n" \
+"      }\n" \
+"   },\n" \
+"   tooltip: {\n" \
+"      borderWidth: 0,\n" \
+"      backgroundColor: 'rgba(219,219,216,0.8)',\n" \
+"      shadow: false,\n" \
+"      shared: true\n" \
+"   },\n" \
+"   legend: {\n" \
+"      itemStyle: {\n" \
+"         fontWeight: 'bold',\n" \
+"         fontSize: '13px'\n" \
+"      }\n" \
+"   },\n" \
+"   xAxis: {\n" \
+"      \n" \
+"      gridLineWidth: 1,\n" \
+"      labels: {\n" \
+"         style: {\n" \
+"            fontSize: '12px'\n" \
+"         }\n" \
+"      },\n" \
+"EXTRA_XAXIS_OPTIONS" \
+"   },\n" \
+"   yAxis: {\n" \
+"      title: {\n" \
+"         style: {\n" \
+"            textTransform: 'uppercase'\n" \
+"         }\n" \
+"      },\n" \
+"      labels: {\n" \
+"         style: {\n" \
+"            fontSize: '12px'\n" \
+"         }\n" \
+"      },\n" \
+"      min: -10,\n" \
+"      max: 250,\n" \
+"   },\n" \
+"   plotOptions: {\n" \
+"      candlestick: {\n" \
+"         lineColor: '#404048'\n" \
+"      }\n" \
+"   },\n" \
+"\n" \
+"\n" \
+"   // General\n" \
+"   background2: '#F0F0EA'\n" \
+"\n" \
+"};\n" \
+"\n" \
+"// Apply the theme\n" \
+"Highcharts.setOptions(Highcharts.theme);\n" \
+"\n" \
+"$('#highchart_player_lifetime_PLAYERNAME').highcharts({\n" \
+"    chart: {\n" \
+"        zoomType: 'x'\n" \
+"    },\n" \
+"    title: {\n" \
+"        text: 'CHART_TITLE',\n" \
+"        align: 'center'\n" \
+"    },\n" \
+"    xAxis: [{\n" \
+"               title: {\n" \
+"               text: 'Time'\n" \
+"            },\n" \
+"    plotLines: [\n" \
+"DEATH_LINES" \
+"    ],\n" \
+"    }],\n" \
+"    yAxis: [{ // Primary yAxis\n" \
+"        labels: {\n" \
+"            format: '{value}',\n" \
+"            style: {\n" \
+"                color: 'black'\n" \
+"            }\n" \
+"        },\n" \
+"        title: {\n" \
+"            text: 'Armor',\n" \
+"            style: {\n" \
+"                color: 'black'\n" \
+"            }\n" \
+"        }\n" \
+"\n" \
+"    }, { // Secondary yAxis\n" \
+"        gridLineWidth: 0,\n" \
+"        title: {\n" \
+"            text: 'Health',\n" \
+"            style: {\n" \
+"                color: 'blue'\n" \
+"            }\n" \
+"        },\n" \
+"        labels: {\n" \
+"            format: '{value}',\n" \
+"            style: {\n" \
+"                color: 'blue'\n" \
+"            }\n" \
+"        },\n" \
+"        opposite: true\n" \
+"\n" \
+"    }],\n" \
+"    tooltip: {\n" \
+"        shared: true\n" \
+"    },\n" \
+"    legend: {\n" \
+"        layout: 'vertical',\n" \
+"        align: 'left',\n" \
+"        x: 180,\n" \
+"        verticalAlign: 'top',\n" \
+"        y: 55,\n" \
+"        floating: true,\n" \
+"        backgroundColor:\n" \
+"            Highcharts.defaultOptions.legend.backgroundColor || // theme\n" \
+"            'rgba(255,255,255,0.25)'\n" \
+"    },\n" \
+"    series: [ {\n" \
+"        name: 'Health',\n" \
+"     \n" \
+"        data: [ " \
+"HEALTH_ROWS" \
+"],\n" \
+"        marker: {\n" \
+"            enabled: false\n" \
+"        },\n" \
+"        \n" \
+"        tooltip: {\n" \
+"            valueSuffix: ''\n" \
+"        },\n" \
+"                color: 'blue'\n" \
+"\n" \
+"    }, {\n" \
+"        name: 'Armor',        \n" \
+"        yAxis: 1,\n" \
+"        data: [" \
+"ARMOR_ROWS" \
+"],\n" \
+"        marker: {\n" \
+"            enabled: false\n" \
+"        },\n" \
+"        tooltip: {\n" \
+"            valueSuffix: ''\n" \
+"        },\n" \
+"                color: 'black'\n" \
+"    }],\n" \
+"    responsive: {\n" \
+"        rules: [{\n" \
+"            condition: {\n" \
+"                maxWidth: 500\n" \
+"            },\n" \
+"            chartOptions: {\n" \
+"                legend: {\n" \
+"                    floating: true,\n" \
+"                    layout: 'horizontal',\n" \
+"                    align: 'center',\n" \
+"                    verticalAlign: 'bottom',\n" \
+"                    x: 0,\n" \
+"                    y: 0\n" \
+"                },\n" \
+"                yAxis: [{\n" \
+"                    labels: {\n" \
+"                        align: 'right',\n" \
+"                        x: 0,\n" \
+"                        y: -6\n" \
+"                    },\n" \
+"                    showLastLabel: false\n" \
+"                }, {\n" \
+"                    labels: {\n" \
+"                        align: 'left',\n" \
+"                        x: 0,\n" \
+"                        y: -6\n" \
+"                    },\n" \
+"                    showLastLabel: false\n" \
+"                }, {\n" \
+"                    visible: false\n" \
+"                }]\n" \
+"            }\n" \
+"        }]\n" \
+"    }\n" \
+"});\n" \
+"});\n"
+
+HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_DIV_TAG = "<div id=\"highchart_player_lifetime_PLAYERNAME\" style=\"min-width: 310px; height: 500px; margin: 0 auto\"></div>"
+ 
+HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_DEATH_LINE_TEMPLATE = "  {color: 'LINE_COLOR', width: 3, value: LINE_VALUE },"
+  
+# =========================================================================================================================================================    
+  
 BG_COLOR_GRAY  = "#bfbfbf"
 BG_COLOR_LIGHT_GRAY = "#e6e6e6"
 BG_COLOR_GREEN = "#00ff00"
@@ -2319,6 +2525,18 @@ class PowerUp:
     def __str__(self):
         return "%s [%d]" % (powerUpTypeToString(self.type), self.time)
 
+PlayerLifetimeDeathType = enum(NONE=0, COMMON=1, SUICIDE=2, TEAM_KILL=3)
+        
+class PlayerLifetimeElement:
+    def __init__(self, _time, _health, _armor, _deathType = PlayerLifetimeDeathType.NONE):
+        self.time = _time
+        self.health = _health
+        self.armor = _armor
+        self.deathType = _deathType
+        
+    def __str__(self):
+        return "time: %f, health: %d, armor: %d, deathType: %d" % (self.time, self.health, self.armor, self.deathType)
+        
 class Player:
     def __init__(self, teamname, name, score, origDelta, teamkills):
         self.teamname = teamname
@@ -2490,6 +2708,60 @@ class Player:
         self.mutual_kills = []  # [[time,target,kill_wp,death_wp],..]
         self.suicide_kills = []  # [[time,target,wp],..]
         
+        self.currentHealth = 100
+        self.currentArmor = 0
+        self.lifetime = []
+        self.lifetime.append( PlayerLifetimeElement(0,self.currentHealth,self.currentArmor) )        
+        
+    def addLifetimeItem(self, element):
+        if isinstance(element, DamageElement):
+            if element.armor == 1:
+                self.currentArmor -= element.value
+            else:
+                self.currentHealth -= element.value
+
+            if self.currentArmor < 0:
+                self.currentArmor = 0
+            
+            if self.currentHealth <= 0:
+                self.currentHealth = 100
+                self.currentArmor = 0
+            else:
+                self.lifetime.append( PlayerLifetimeElement(element.time,self.currentHealth,self.currentArmor) )
+            
+        if isinstance(element, PickMapItemElement):
+            if element.isArmor:
+                self.currentArmor += element.value
+                
+            elif element.isHealth:
+                self.currentHealth += element.value
+                
+            self.lifetime.append( PlayerLifetimeElement(element.time,self.currentHealth,self.currentArmor) )
+        
+    def correctLifetime(self, minutesPlayed):  # remove elements with one timestamp - the last one for same time should be left
+        correctedLT = []
+        # print "VVVVVVVVVVV %s VVVVVVVVVVVVV" % (self.name)
+        # for lt in self.lifetime:
+            # print str(lt)
+        for i in xrange(len(self.lifetime)):
+            if i + 1 < len(self.lifetime):
+                if self.lifetime[i].time == self.lifetime[i+1].time:
+                    pass
+                else:
+                    correctedLT.append(self.lifetime[i])
+            else:
+                # last element
+                correctedLT.append(self.lifetime[i])
+                
+        self.lifetime = correctedLT
+        
+        if self.lifetime[len(self.lifetime)-1].time != minutesPlayed*60:
+            self.lifetime.append( PlayerLifetimeElement(minutesPlayed*60, self.lifetime[len(self.lifetime)-1].health, self.lifetime[len(self.lifetime)-1].armor) )
+        # print "----------------------"
+        # for lt in self.lifetime:
+            # print str(lt)
+        # print "^^^^^^^^^^^^^^^^^^^^^^^"
+        
     def initPowerUpsByMinutes(self, minutesCnt):
         self.gaByMinutes = [0 for i in xrange(minutesCnt+1)]
         self.yaByMinutes = [0 for i in xrange(minutesCnt+1)]
@@ -2617,6 +2889,9 @@ class Player:
 
         if self.currentDeathStreak.start == 0: self.currentDeathStreak.start = time
         self.fillStreaks(time)
+        
+        self.lifetime.append( PlayerLifetimeElement(time,-1,-1,PlayerLifetimeDeathType.COMMON) )
+        self.lifetime.append( PlayerLifetimeElement(time + 0.0001,100,0) )
 
     def incSuicides(self, time):
         self.suicides += 1
@@ -2627,6 +2902,9 @@ class Player:
 
         if self.currentDeathStreak.start == 0: self.currentDeathStreak.start = time
         self.fillStreaks(time)
+        
+        self.lifetime.append( PlayerLifetimeElement(time,-1,-1,PlayerLifetimeDeathType.SUICIDE) )
+        self.lifetime.append( PlayerLifetimeElement(time + 0.0001,100,0) )
 
     def incTeamkill(self, time, who, whom):
         self.teamkills += 1
@@ -2645,6 +2923,9 @@ class Player:
 
         if self.currentDeathStreak.start == 0: self.currentDeathStreak.start = time
         self.fillStreaks(time)
+        
+        self.lifetime.append( PlayerLifetimeElement(time,-1,-1,PlayerLifetimeDeathType.TEAM_KILL) )
+        self.lifetime.append( PlayerLifetimeElement(time + 0.0001,100,0) )
 
     def frags(self):
         return (self.kills - self.teamkills - self.suicides);
@@ -3947,8 +4228,9 @@ class PickMapItemElement:
 
         self.isArmor = False
         self.isMH = False
+        self.isHealth = False
         self.armorType = PowerUpType.UNKNOWN
-
+              
     def __init__(self, elem):
         self.time = float(elem.find("time").text)
         self.item =  elem.find("item").text
@@ -3956,7 +4238,14 @@ class PickMapItemElement:
         self.value = int(elem.find("value").text) 
 
         self.isArmor = "item_armor" in self.item
-        self.isMH    = self.item == "health_100"
+        
+        self.isMH = False
+        self.isHealth = False        
+        
+        if "health" in self.item:
+            if self.item == "health_100":
+                self.isMH = True
+            self.isHealth = True
         
         if self.isArmor:
             if self.item == "item_armor1":
