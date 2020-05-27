@@ -37,7 +37,7 @@ possibleColors = [HtmlColor.COLOR_RED,
                   HtmlColor.COLOR_CYAN,
                   HtmlColor.COLOR_MAGENTA]
 
-CURRENT_VERSION = "1.09"
+CURRENT_VERSION = "1.11"
                   
 LOG_TIMESTAMP_DELIMITER = " <-> "
 
@@ -2137,7 +2137,7 @@ HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_FUNCTION = \
 
 HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_DIV_TAG = "<div id=\"highchart_player_lifetime_PLAYERNAME\" style=\"min-width: 310px; height: 500px; margin: 0 auto\"></div>"
  
-HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_DEATH_LINE_TEMPLATE = "  {color: 'LINE_COLOR', width: 2, value: LINE_VALUE },"
+HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_DEATH_LINE_TEMPLATE = "  {color: 'LINE_COLOR', width: 1, value: LINE_VALUE, label: { text: 'LINE_LABEL', verticalAlign: 'bottom', textAlign: 'right', style: { fontSize: 10, color: 'LABEL_COLOR' }} },"
   
 # =========================================================================================================================================================    
   
@@ -2528,14 +2528,15 @@ class PowerUp:
 PlayerLifetimeDeathType = enum(NONE=0, COMMON=1, SUICIDE=2, TEAM_KILL=3)
         
 class PlayerLifetimeElement:
-    def __init__(self, _time, _health, _armor, _deathType = PlayerLifetimeDeathType.NONE):
+    def __init__(self, _time, _health, _armor, _deathType = PlayerLifetimeDeathType.NONE, _killer = ""):
         self.time = _time
         self.health = _health
         self.armor = _armor
         self.deathType = _deathType
+        self.killer = _killer
         
     def __str__(self):
-        return "time: %f, health: %d, armor: %d, deathType: %d" % (self.time, self.health, self.armor, self.deathType)
+        return "time: %f, health: %d, armor: %d, deathType: %d, killer: %s" % (self.time, self.health, self.armor, self.deathType, self.killer)
         
 class Player:
     def __init__(self, teamname, name, score, origDelta, teamkills):
@@ -2796,28 +2797,28 @@ class Player:
             self.powerUps.append( PowerUp(PowerUpType.MH, time, self.name) )
 
     def incgaXML(self, time):
-        minuteNum = int(time/60) + 1
+        minuteNum = int(time/60) + 1 if time%60 != 0 else 0
 
         self.gaByMinutesXML[minuteNum] += 1
         if time != 0:
             self.powerUps.append( PowerUp(PowerUpType.GA, time, self.name) )
 
     def incyaXML(self, time):
-        minuteNum = int(time/60) + 1
+        minuteNum = int(time/60) + 1 if time%60 != 0 else 0
     
         self.yaByMinutesXML[minuteNum] += 1
         if time != 0:
             self.powerUps.append( PowerUp(PowerUpType.YA, time, self.name) )
 
     def incraXML(self, time):
-        minuteNum = int(time/60) + 1
+        minuteNum = int(time/60) + 1 if time%60 != 0 else 0
         
         self.raByMinutesXML[minuteNum] += 1
         if time != 0:
             self.powerUps.append( PowerUp(PowerUpType.RA, time, self.name) )
 
     def incmhXML(self, time):
-        minuteNum = int(time/60) + 1
+        minuteNum = int(time/60) + 1 if time%60 != 0 else 0
 
         self.mhByMinutesXML[minuteNum] += 1
         if time != 0:
@@ -2890,7 +2891,7 @@ class Player:
         if self.currentDeathStreak.start == 0: self.currentDeathStreak.start = time
         self.fillStreaks(time)
         
-        self.lifetime.append( PlayerLifetimeElement(time,-1,-1,PlayerLifetimeDeathType.COMMON) )
+        self.lifetime.append( PlayerLifetimeElement(time,-1,-1,PlayerLifetimeDeathType.COMMON, who) )
         self.lifetime.append( PlayerLifetimeElement(time + 0.0001,100,0) )
 
     def incSuicides(self, time):
@@ -2903,7 +2904,7 @@ class Player:
         if self.currentDeathStreak.start == 0: self.currentDeathStreak.start = time
         self.fillStreaks(time)
         
-        self.lifetime.append( PlayerLifetimeElement(time,-1,-1,PlayerLifetimeDeathType.SUICIDE) )
+        self.lifetime.append( PlayerLifetimeElement(time,-1,-1,PlayerLifetimeDeathType.SUICIDE, "SELF") )
         self.lifetime.append( PlayerLifetimeElement(time + 0.0001,100,0) )
 
     def incTeamkill(self, time, who, whom):
@@ -2924,7 +2925,7 @@ class Player:
         if self.currentDeathStreak.start == 0: self.currentDeathStreak.start = time
         self.fillStreaks(time)
         
-        self.lifetime.append( PlayerLifetimeElement(time,-1,-1,PlayerLifetimeDeathType.TEAM_KILL) )
+        self.lifetime.append( PlayerLifetimeElement(time,-1,-1,PlayerLifetimeDeathType.TEAM_KILL, "[MATE]%s" % (who)) )
         self.lifetime.append( PlayerLifetimeElement(time + 0.0001,100,0) )
 
     def frags(self):
@@ -4159,6 +4160,8 @@ class DamageElement:
 
         self.isSelfDamage = self.attacker == self.target
 
+    def toString(self):
+        return "DamageElement: time=%f, attacker=%s, target=%s, type=%s, value=%f, armor=%d, isSelfDamage=%d\n" % (self.time,self.attacker,self.target,self.type,self.value,self.armor,self.isSelfDamage)
 
 #<death>
 #<time>18.817241</time>
@@ -4197,6 +4200,9 @@ class DeathElement:
         
         self.isSuicide = self.attacker == self.target
         self.isSpawnFrag = self.lifetime < 2.0
+        
+    def toString(self):
+        return "DeathElement: time=%f, attacker=%s, target=%s, type=%s, armorleft=%d, lifetime=%f, isSuicide=%d, isSpawnFrag=%d\n" % (self.time,self.attacker,self.target,self.type,self.armorleft,self.lifetime,self.isSuicide,self.isSpawnFrag)
 
         #<pick_mapitem>
 #        <time>15.715332</time>
