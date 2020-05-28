@@ -37,7 +37,7 @@ possibleColors = [HtmlColor.COLOR_RED,
                   HtmlColor.COLOR_CYAN,
                   HtmlColor.COLOR_MAGENTA]
 
-CURRENT_VERSION = "1.11"
+CURRENT_VERSION = "1.12"
                   
 LOG_TIMESTAMP_DELIMITER = " <-> "
 
@@ -1085,7 +1085,13 @@ HTML_SCRIPT_HIGHCHARTS_TEAM_BATTLE_PROGRESS_FUNCTION = \
 "        },\n" \
 "        xAxis: {\n" \
 "            categories: [MINUTES],\n" \
-"            crosshair: true\n" \
+"            crosshair: true,\n" \
+"            labels: {\n" \
+"     formatter: function () {\n" \
+"       return (this.value).toString()\n" \
+"    },\n" \
+"},\n" \
+"            tickPositions: [TICK_POSITIONS_VALS]\n" \
 "        },\n" \
 "        yAxis: [{\n" \
 "            title: {\n" \
@@ -2714,6 +2720,10 @@ class Player:
         self.lifetime = []
         self.lifetime.append( PlayerLifetimeElement(0,self.currentHealth,self.currentArmor) )        
         
+        self.lifetimeXML = 0.0
+        self.firstDeathXML = ""
+        self.lastDeathXML = ""
+        
     def addLifetimeItem(self, element):
         if isinstance(element, DamageElement):
             if element.armor == 1:
@@ -3629,7 +3639,6 @@ class Achievement:
            self.achtype == AchievementType.ALWAYS_THE_FIRST   or \
            self.achtype == AchievementType.OVERTIME           or \
            self.achtype == AchievementType.DUEL_WINNER        or \
-           self.achtype == AchievementType.SNIPER             or \
            self.achtype == AchievementType.PERSONAL_STALKER   or \
            self.achtype == AchievementType.WHITEWASH          or \
            self.achtype == AchievementType.FASTER_THAN_BULLET or \
@@ -3650,6 +3659,7 @@ class Achievement:
            self.achtype == AchievementType.HUNDRED_KILLS          or \
            self.achtype == AchievementType.FINISH_GURU            or \
            self.achtype == AchievementType.ELECTROMASTER          or \
+           self.achtype == AchievementType.SNIPER                 or \
            self.achtype == AchievementType.DEATH_CHEATER          or \
            self.achtype == AchievementType.UNIVERSAL_SOLDIER      or \
            self.achtype == AchievementType.LONG_LIVE_KING         or \
@@ -4183,7 +4193,7 @@ class DeathElement:
         self.quad = -1
         self.armorleft = -1
         self.killheight = -1
-        self.lifetime = -1
+        self.lifetime = 0.0
 
         self.isSuicide = False
         self.isSpawnFrag = False

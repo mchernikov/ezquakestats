@@ -126,8 +126,30 @@ elementsCloseByTime = [] # [[timestamp1,..,timestampN], [elemen1, elemen2, .. , 
 
 
 sourceXML = open(options.inputFileXML)
-tree = ET.parse(sourceXML)
-root = tree.getroot()
+
+try:
+    tree = ET.parse(sourceXML)
+    root = tree.getroot()
+except:
+    # try to cut XML - find the last "<?xml version="1.0" encoding="ISO-8859-1"?>" and take only text after
+    xmlLine = "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>"
+    
+    sourceXML = open(options.inputFileXML)
+    xmlLines = sourceXML.readlines()
+    
+    i = len(xmlLines)-1
+    isOver = False
+    while not isOver:
+        if xmlLine in xmlLines[i]:
+            isOver = True            
+            break
+        i -= 1
+    
+    xmlText = ""
+    for j in xrange(i,len(xmlLines)):
+        xmlText += xmlLines[j]
+    
+    root = ET.fromstring(xmlText)
 
 i = 0
 j = 0
@@ -289,6 +311,10 @@ for elem in deathElements:
         for pl in xmlPlayers:
             if pl.name == elem.attacker:
                 pl.suicidesXML += 1
+                pl.lifetimeXML += elem.lifetime
+                if pl.firstDeathXML == "":
+                    pl.firstDeathXML = elem
+                pl.lastDeathXML = elem
     else:
 
         #print "%f  %s -> %s  \"%s\"  %f" % (elem.time, elem.attacker, elem.target, elem.type, elem.lifetime)
@@ -301,6 +327,10 @@ for elem in deathElements:
                     pl.spawnFragsXML += 1
             if pl.name == elem.target:
                 pl.deathsXML += 1
+                pl.lifetimeXML += elem.lifetime
+                if pl.firstDeathXML == "":
+                    pl.firstDeathXML = elem
+                pl.lastDeathXML = elem
 
 
 
@@ -1599,6 +1629,13 @@ for pl in allplayers:
         resultString += "\n"
            
 resultString += "\n"    
+
+# lifetimeXML
+resultString += "\nLifetime: \n"
+for pl in allplayers:    
+    resultString += "%s: %f, inactive time: %f,  1st death: time(%f), lifetime(%f)\n" % (pl.name, pl.lifetimeXML, (minutesPlayedXML*60 - pl.lifetimeXML), pl.firstDeathXML.time, pl.firstDeathXML.lifetime)
+
+resultString += "\n"
     
 # print resultString  RESULTPRINT
 

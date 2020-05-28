@@ -132,8 +132,30 @@ elementsByTime = [] # [timestamp, [elemen1, elemen2, .. , elementN]]
 elementsCloseByTime = [] # [[timestamp1,..,timestampN], [elemen1, elemen2, .. , elementN]]  delta(timestamp1,..,timestampN) < 0.2 sec
 
 sourceXML = open(options.inputFileXML)
-tree = ET.parse(sourceXML)
-root = tree.getroot()
+
+try:
+    tree = ET.parse(sourceXML)
+    root = tree.getroot()
+except:
+    # try to cut XML - find the last "<?xml version="1.0" encoding="ISO-8859-1"?>" and take only text after
+    xmlLine = "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>"
+    
+    sourceXML = open(options.inputFileXML)
+    xmlLines = sourceXML.readlines()
+    
+    i = len(xmlLines)-1
+    isOver = False
+    while not isOver:
+        if xmlLine in xmlLines[i]:
+            isOver = True            
+            break
+        i -= 1
+    
+    xmlText = ""
+    for j in xrange(i,len(xmlLines)):
+        xmlText += xmlLines[j]
+    
+    root = ET.fromstring(xmlText)
 
 i = 0
 j = 0
@@ -297,6 +319,10 @@ for elem in deathElements:
         for pl in xmlPlayers:
             if pl.name == elem.attacker:
                 pl.suicidesXML += 1
+                pl.lifetimeXML += elem.lifetime
+                if pl.firstDeathXML == "":
+                    pl.firstDeathXML = elem
+                pl.lastDeathXML = elem
     else:
 
         #print "%f  %s -> %s  \"%s\"  %f" % (elem.time, elem.attacker, elem.target, elem.type, elem.lifetime)
@@ -309,6 +335,10 @@ for elem in deathElements:
                     pl.spawnFragsXML += 1
             if pl.name == elem.target:
                 pl.deathsXML += 1
+                pl.lifetimeXML += elem.lifetime
+                if pl.firstDeathXML == "":
+                    pl.firstDeathXML = elem
+                pl.lastDeathXML = elem
 
 
 
@@ -402,6 +432,9 @@ for pl in jsonPlayers:
             pl.damageGvnArmor = plXML.damageGvnArmor
             pl.damageTknArmor = plXML.damageTknArmor
             pl.damageSelfArmor = plXML.damageSelfArmor
+            pl.lifetimeXML = plXML.lifetimeXML + (minutesPlayedXML*60 - plXML.lastDeathXML.time)
+            pl.lastDeathXML = plXML.lastDeathXML
+            pl.firstDeathXML = plXML.firstDeathXML
 
 
     allplayers.append(pl)
@@ -1739,6 +1772,13 @@ for pl in allplayers:
            
 resultString += "\n"
 
+# lifetimeXML
+resultString += "\nLifetime: \n"
+for pl in allplayers:    
+    resultString += "%s: %f, inactive time: %f,  1st death: time(%f), lifetime(%f)\n" % (pl.name, pl.lifetimeXML, (minutesPlayedXML*60 - pl.lifetimeXML), pl.firstDeathXML.time, pl.firstDeathXML.lifetime)
+
+resultString += "\n"
+
 # print resultString  RESULTPRINT
 
 def writeHtmlWithScripts(f, teams, resStr):
@@ -1971,7 +2011,12 @@ def writeHtmlWithScripts(f, teams, resStr):
     for i in xrange(1,matchMinutesCnt+1):
         minutesStr += "'%d'," % (i)
     minutesStr = minutesStr[:-1]
-
+    
+    tickPositions = ""
+    for i in xrange(0,matchMinutesCnt+1):
+        tickPositions += "%d," % (i)
+    tickPositions = tickPositions[:-1]
+    
     maxTotalFrags =  (sorted(teams, key=methodcaller("frags"), reverse=True))[0].frags()
     maxPlayerFrags = (sorted(allplayers, key=methodcaller("frags"), reverse=True))[0].frags()
 
@@ -2001,6 +2046,7 @@ def writeHtmlWithScripts(f, teams, resStr):
         highchartsTeamBattleProgressFunctionStr = highchartsTeamBattleProgressFunctionStr.replace("DIV_NAME", "team_progress%d" % (tn))
         highchartsTeamBattleProgressFunctionStr = highchartsTeamBattleProgressFunctionStr.replace("TEAM_NAME", tt.name)
         highchartsTeamBattleProgressFunctionStr = highchartsTeamBattleProgressFunctionStr.replace("MINUTES", minutesStr)
+        highchartsTeamBattleProgressFunctionStr = highchartsTeamBattleProgressFunctionStr.replace("TICK_POSITIONS_VALS", tickPositions)
         highchartsTeamBattleProgressFunctionStr = highchartsTeamBattleProgressFunctionStr.replace("ADD_ROWS", rowLines)
         highchartsTeamBattleProgressFunctionStr = highchartsTeamBattleProgressFunctionStr.replace("TEAM_POINTS", teamPointsStr)
 
