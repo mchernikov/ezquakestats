@@ -37,7 +37,7 @@ possibleColors = [HtmlColor.COLOR_RED,
                   HtmlColor.COLOR_CYAN,
                   HtmlColor.COLOR_MAGENTA]
 
-CURRENT_VERSION = "1.12"
+CURRENT_VERSION = "1.13"
                   
 LOG_TIMESTAMP_DELIMITER = " <-> "
 
@@ -2141,7 +2141,18 @@ HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_FUNCTION = \
 "});\n" \
 "});\n"
 
-HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_DIV_TAG = "<div id=\"highchart_player_lifetime_PLAYERNAME\" style=\"min-width: 310px; height: 500px; margin: 0 auto\"></div>"
+# HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_DIV_TAG = "<div id=\"highchart_player_lifetime_PLAYERNAME\" style=\"min-width: 310px; height: 500px; margin: 0 auto\"></div>"
+HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_DIV_TAG = \
+"<div class=\"wpb_text_column wpb_content_element \">\n" \
+  "<div class=\"wpb_wrapper\">\n" \
+  "  <div class=\"symple-toggle state-closed\" id=\"highchart_player_lifetime_PLAYERNAME_folding\">\n" \
+  "    <h2 class=\"symple-toggle-trigger \">Lifetime of PLAYERNAME</h3>\n " \
+  "    <div class=\"symple-toggle-container symple-clearfix\">\n" \
+  "       <div id=\"highchart_player_lifetime_PLAYERNAME\" style=\"min-width: 310px; height: 500px; margin: 0 auto\"></div>" \
+  "    </div>\n" \
+  "  </div>\n" \
+  "</div>\n" \
+  "</div>\n";
  
 HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_DEATH_LINE_TEMPLATE = "  {color: 'LINE_COLOR', width: 1, value: LINE_VALUE, label: { text: 'LINE_LABEL', verticalAlign: 'bottom', textAlign: 'right', style: { fontSize: 10, color: 'LABEL_COLOR' }} },"
   
@@ -2903,6 +2914,8 @@ class Player:
         
         self.lifetime.append( PlayerLifetimeElement(time,-1,-1,PlayerLifetimeDeathType.COMMON, who) )
         self.lifetime.append( PlayerLifetimeElement(time + 0.0001,100,0) )
+        self.currentHealth = 100
+        self.currentArmor = 0
 
     def incSuicides(self, time):
         self.suicides += 1
@@ -2916,6 +2929,8 @@ class Player:
         
         self.lifetime.append( PlayerLifetimeElement(time,-1,-1,PlayerLifetimeDeathType.SUICIDE, "SELF") )
         self.lifetime.append( PlayerLifetimeElement(time + 0.0001,100,0) )
+        self.currentHealth = 100
+        self.currentArmor = 0
 
     def incTeamkill(self, time, who, whom):
         self.teamkills += 1
@@ -2937,6 +2952,8 @@ class Player:
         
         self.lifetime.append( PlayerLifetimeElement(time,-1,-1,PlayerLifetimeDeathType.TEAM_KILL, "[MATE]%s" % (who)) )
         self.lifetime.append( PlayerLifetimeElement(time + 0.0001,100,0) )
+        self.currentHealth = 100
+        self.currentArmor = 0
 
     def frags(self):
         return (self.kills - self.teamkills - self.suicides);
