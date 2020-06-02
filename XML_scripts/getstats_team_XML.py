@@ -31,20 +31,8 @@ import random
 import xml.etree.ElementTree as ET
 import json
 
-# TODO use ezstatslib.readLineWithCheck
-# TODO skip lines separate log
-# TODO make index file
-
 ezstatslib.REPORTS_FOLDER = stat_conf.reports_dir
 ezstatslib.LOGS_INDEX_FILE_NAME = "index.html"
-
-COMMAND_LOG_LOCAL_SMALL_DELIM = "__________";
-COMMAND_LOG_LOCAL_BIG_DELIM   = "___________________________________";
-
-COMMAND_LOG_NET_SMALL_DELIM   = "(========)";
-COMMAND_LOG_NET_BIG_DELIM     = "(=================================)";
-
-teammateTelefrags = [] # array of names who was telegragged by teammates
 
 def fillH2H(who,whom,minute):
     try:
@@ -64,17 +52,29 @@ def fillH2HDamage(who,whom,value,minute):
     except Exception, ex:
         ezstatslib.logError("fillH2HDamage: who=%s, whom=%s, minute=%d, ex=%s\n" % (who, whom, minute, ex))		
 		
-plPrevFragsDict = {}
+def deltaToString(delta):
+    deltaStr = ""
+    if delta == 0:
+        deltaStr = "<sup>0  </sup>"
+    else:
+        if delta > 0:
+            deltaStr = "<sup>+%d%s</sup>" % (delta, " " if delta < 10 else "")
+        else:
+            deltaStr = "<sup>%d%s</sup>"  % (delta, " " if delta < 10 else "")
+    return deltaStr
 
+plPrevFragsDict = {}
+    
 def getFragsLine(players):
     playersByFrags = sorted(players, key=lambda x: (x.frags(), x.kills, x.calcDelta()), reverse=True)
-    s = "[%s]" % (players[0].teamname)
+    s = "[%s]TEAM_DELTA" % (players[0].teamname)
 
     fragsSum = 0
     for pl in playersByFrags:
         fragsSum += pl.frags()
     s += " {0:3d}: ".format(fragsSum)
 
+    teamFragsDelta = 0
     for pl in playersByFrags:
         if not pl.name in plPrevFragsDict.keys():
             plFragsDelta = pl.frags()
@@ -82,15 +82,11 @@ def getFragsLine(players):
             plFragsDelta = pl.frags() - plPrevFragsDict[pl.name]
         plPrevFragsDict[pl.name] = pl.frags()
 
-        if plFragsDelta == 0:
-            deltaStr = "<sup>0  </sup>"
-        else:
-            if plFragsDelta > 0:
-                deltaStr = "<sup>+%d%s</sup>" % (plFragsDelta, " " if plFragsDelta < 10 else "")
-            else:
-                deltaStr = "<sup>%d%s</sup>"  % (plFragsDelta, " " if plFragsDelta < 10 else "")
-
+        teamFragsDelta += plFragsDelta
+        deltaStr = deltaToString(plFragsDelta)
         s += ( "{0:%ds}" % (20+len(deltaStr)) ).format(pl.name + "(" + str(pl.frags()) + ")" + deltaStr)
+    
+    s = s.replace("TEAM_DELTA", deltaToString(teamFragsDelta))
     s = s[:-1]
 
     return s
@@ -157,6 +153,8 @@ except:
     
     root = ET.fromstring(xmlText)
 
+matchdateLog = ""    
+    
 i = 0
 j = 0
 k = 0
@@ -173,22 +171,30 @@ for child in root:
             if ev.tag == "map":
                 mapName = "[" + ev.text + "]"
             if ev.tag == "timestamp":
+                matchdateLog += "ev.text = " + ev.text + "\n"
+            
                 if "Russia" in ev.text:
                     matchdate = ev.text.split(" Russia")[0]
+                    matchdateLog += "I matchdate = " + matchdate + "\n"
                 else:
+                    correctionHours = 2
                     try:
                         matchdate = ev.text.split(" Eur")[0]
+                        matchdateLog += "II matchdate = " + matchdate + "\n"
                         dt = datetime.strptime(matchdate, '%Y-%m-%d %H:%M:%S')
+                        correctionHours = 3
                     except:
                         datesplit = ev.text.split(" ")
                         matchdate = datesplit[0] + " " + datesplit[1]
-
-                        print matchdate
-
+                        matchdateLog += "III matchdate = " + matchdate + "\n"
                         dt = datetime.strptime(matchdate, '%Y-%m-%d %H:%M:%S')
+                        if "CEST" in ev.text:
+                            correctionHours = 1
 
-                    dtcorrected = dt + timedelta(hours=3)
-                    matchdate = dtcorrected.strftime('%Y-%m-%d %H:%M:%S') 
+                    dtcorrected = dt + timedelta(hours=correctionHours)
+                    matchdate = dtcorrected.strftime('%Y-%m-%d %H:%M:%S')
+                    matchdateLog += "RESULT: matchdate = " + matchdate + "\n"
+                    
             if ev.tag == "mode":
                 gameMode = ev.text
         if gameMode != "":
@@ -253,13 +259,8 @@ for child in root:
 #                for evtags in evtype:
 #                    print evtags.tag, evtags.attrib, evtags.text
 
-
                 k+=1
-
-
             j+=1
-
-    
     i+=1
        
 sourceXML.close()
@@ -372,14 +373,22 @@ for pl in xmlPlayers:
     print "    ya: %s" % (pl.yaByMinutesXML)
     print "    ra: %s" % (pl.raByMinutesXML)
     print "    mh: %s" % (pl.mhByMinutesXML)    
-    
-    
+
+timelimit = -1
+duration = -1
+isOverTime = False
+overtimeMinutes = -1
+rlAttacksByPlayers = {}
+
 # open json    
 jsonPlayers = []
 with open(options.inputFileJSON, 'r') as fjson:
     jsonStrRead = json.load(fjson)
     teamName1 = jsonStrRead["players"][0]["team"]
-    team1 = Team(teamName1)    
+    team1 = Team(teamName1)
+    
+    timelimit = int(jsonStrRead["tl"])
+    duration = int(jsonStrRead["duration"])
     
     for i in xrange(len(jsonStrRead["players"])):
         if jsonStrRead["players"][i]["team"] != teamName1:
@@ -388,7 +397,12 @@ with open(options.inputFileJSON, 'r') as fjson:
     
         pl = Player( jsonStrRead["players"][i]["team"], jsonStrRead["players"][i]["name"], 0, 0, 0 )  #def __init__(self, teamname, name, score, origDelta, teamkills):
         pl.initPowerUpsByMinutes(minutesPlayedXML)
+        rlAttacksByPlayers[pl.name] = jsonStrRead["players"][i]["weapons"]["rl"]["acc"]["attacks"];
+        
         jsonPlayers.append(pl)
+
+isOverTime = minutesPlayedXML != timelimit;
+overtimeMinutes = minutesPlayedXML - timelimit    
         
 for pl in jsonPlayers:
     print pl.name, " - ", pl.teamname     
@@ -435,7 +449,12 @@ for pl in jsonPlayers:
             pl.lifetimeXML = plXML.lifetimeXML + (minutesPlayedXML*60 - plXML.lastDeathXML.time)
             pl.lastDeathXML = plXML.lastDeathXML
             pl.firstDeathXML = plXML.firstDeathXML
-
+            
+            if len(rlAttacksByPlayers) != 0:
+                try:
+                    pl.rl_attacks = rlAttacksByPlayers[pl.name]
+                except:
+                    pass
 
     allplayers.append(pl)
     if pl.teamname == teamName1:
@@ -535,21 +554,6 @@ for element in elements:
         matchProgressPlayers2DictEx.append(playersProgressLineDict2)
 
         battleProgressExtendedNextPoint += (int)(60 / ezstatslib.HIGHCHARTS_BATTLE_PROGRESS_GRANULARITY)
-        
-    # else:
-        # if currentMatchTime > battleProgressExtendedNextPoint:
-            # battleProgressExtendedNextPoint += (int)(60 / ezstatslib.HIGHCHARTS_BATTLE_PROGRESS_GRANULARITY)
-            # progressLineDict = {}
-            # fr1 = 0
-            # for pl in players1:
-                # fr1 += pl.frags()
-            # fr2 = 0
-            # for pl in players2:
-                # fr2 += pl.frags()
-                
-            # progressLineDict[team1.name] = fr1; # team1.frags()
-            # progressLineDict[team2.name] = fr2; # team2.frags()
-            # matchProgressDictEx.append(progressLineDict)
     
     if len(matchProgressDictEx2) == 0 or matchProgressDictEx2[len(matchProgressDictEx2)-1][team1.name][0] != currentMatchTime:
         progressLineDict = {}
@@ -576,17 +580,7 @@ for element in elements:
         for pl in players2ByFrags:
             playersProgressLineDict2[pl.name] = [currentMatchTime, pl.frags(), pl.calcDelta()];        
         matchProgressPlayers2DictEx2.append(playersProgressLineDict2)
-    
-    # # overtime check
-    # if isOverTime and currentMinute == minutesPlayedXML - overtimeMinutes:
-        # if len(allplayersByFrags) >= 2:
-            # if allplayersByFrags[0].frags() == allplayersByFrags[1].frags():
-                # allplayersByFrags[0].overtime_frags = allplayersByFrags[0].frags()
-                # allplayersByFrags[1].overtime_frags = allplayersByFrags[1].frags()
-            # else:
-                # ezstatslib.logError("ERROR: overtime calculation: currentMinute: %d, minutesPlayedXML: %d, allplayersByFrags[0].frags(): %d, allplayersByFrags[1].frags(): %d" % \
-                 # (currentMinute, minutesPlayedXML, allplayersByFrags[0].frags(), allplayersByFrags[1].frags()))
-               
+
     # skip Damage and Death elements with target=None (door which is opened by the shot)
     if (isinstance(element, DeathElement) or isinstance(element, DamageElement)) and element.target is None:
         continue
@@ -628,8 +622,7 @@ for element in elements:
                     pl.death_weapons.add('tele')
                     isFoundWhom = True
              
-            if not isFoundWho or not isFoundWhom:
-                #print "ERROR: count telefrag", who, "-", whom, ":", logline
+            if not isFoundWho or not isFoundWhom:                
                 ezstatslib.logError("ERROR: count telefrag %s-%s\n" % (who, whom))
                 exit(0)
     
@@ -675,7 +668,7 @@ for element in elements:
                 if element.isArmor or element.isMH:
                     exec("pl.inc%s(%d,%d)" % (pwr, currentMinute, currentMatchTime))
                     exec("pl.%s += 1" % (pwr))
-                isFound = True                
+                isFound = True
                 pl.addLifetimeItem(element)
                 break;
         if not isFound:
@@ -1308,9 +1301,6 @@ for pl in allplayers:
     pl.fillStreaks(currentMatchTime)
     pl.fillDeathStreaks(currentMatchTime)
 
-# TODO add teammateTelefrags to team score
-# print "teammateTelefrags:", teammateTelefrags
-
 powerUpsStatus = {}
 for pwrup in ["ra","ya","ga","mh"]:
     exec("powerUpsStatus[\"%s\"] = False" % (pwrup))
@@ -1442,7 +1432,7 @@ if options.withScripts:
 i = 1
 resultString += "battle progress:\n"
 for p in progressStr:
-    resultString += "%d:%s %s\n" % (i, "" if i >= 10 else " ",  p)
+    resultString += "%d:%s %s%s\n" % (i, "" if i >= 10 else " ", p, " << IT IS OVERTIME!!" if isOverTime and i == timelimit else "")
     i += 1
 
 if totalScore[0][1] > totalScore[1][1]:
@@ -1568,7 +1558,6 @@ for pl in sorted(allplayers, key=attrgetter("kills"), reverse=True):
     resultString += "\n"
     resultString += "\n"
 
-
 resultString += "Teams weapons:\n"
 resultString += "{0:23s} kills  {1:3d} :: {2:100s}\n".format("[%s]" % (team1.name), team1.kills,  team1.getWeaponsKills(team1.kills,   weaponsCheck))
 resultString += "{0:23s} deaths {1:3d} :: {2:100s}\n".format("",                    team1.deaths, team1.getWeaponsDeaths(team1.deaths, weaponsCheck))
@@ -1576,6 +1565,10 @@ resultString += "\n"
 resultString += "{0:23s} kills  {1:3d} :: {2:100s}\n".format("[%s]" % (team2.name), team2.kills,  team2.getWeaponsKills(team2.kills,   weaponsCheck))
 resultString += "{0:23s} deaths {1:3d} :: {2:100s}\n".format("",                    team2.deaths, team2.getWeaponsDeaths(team2.deaths, weaponsCheck))
 resultString += "\n"
+
+if options.withScripts:
+    resultString += "RL skill:\n"
+    resultString += "\nHIGHCHART_RL_SKILL_PLACE\n"
 
 if options.withScripts:    
     resultString += "\n</pre>HIGHCHART_PLAYER_LIFETIME_PLACE\n<pre>"
@@ -1620,58 +1613,6 @@ for pl in sorted(players2, key=attrgetter("kills"), reverse=True):
 	
     
 # Players duels table
-# allplayersByFrags = sorted(allplayers, key=methodcaller("frags"), reverse=True)
-# resultString += "\n"
-# resultString += "Players duels:<br>"
-# headerRow=['', 'Frags', 'Kills', 'Deaths']
-# playersNames = []
-# for pl in allplayersByFrags:
-#     headerRow.append(pl.name);
-#     playersNames.append(pl.name)
-#
-# colAlign=[]
-# for i in xrange(len(headerRow)):
-#     colAlign.append("center")
-#
-# htmlTable = HTML.Table(header_row=headerRow, border="2", cellspacing="3", col_align=colAlign,
-#                        style="font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 12pt;")
-#
-# for pl in allplayersByFrags:
-#     tableRow = HTML.TableRow(cells=[ezstatslib.htmlBold(pl.name),
-#                                     ezstatslib.htmlBold(pl.frags()),
-#                                     ezstatslib.htmlBold(pl.kills),
-#                                     ezstatslib.htmlBold(pl.deaths)])
-#
-#     for plName in playersNames:
-#         if pl.name == plName:
-#             tableRow.cells.append( HTML.TableCell(str(pl.suicides), bgcolor=ezstatslib.BG_COLOR_GRAY) )
-#         else:
-#             plKills = 0
-#             for val in headToHead[pl.name]:
-#                 if val[0] == plName:
-#                     plKills = val[1]
-#
-#             plDeaths = 0
-#             for val in headToHead[plName]:
-#                 if val[0] == pl.name:
-#                     plDeaths = val[1]
-#
-#             cellVal = "%s / %s" % (ezstatslib.htmlBold(plKills)  if plKills  > plDeaths else str(plKills),
-#                                    ezstatslib.htmlBold(plDeaths) if plDeaths > plKills  else str(plDeaths))
-#
-#             cellColor = ""
-#             if plKills == plDeaths:
-#                 cellColor = ezstatslib.BG_COLOR_LIGHT_GRAY
-#             elif plKills > plDeaths:
-#                 cellColor = ezstatslib.BG_COLOR_GREEN
-#             else:
-#                 cellColor = ezstatslib.BG_COLOR_RED
-#
-#             tableRow.cells.append( HTML.TableCell(cellVal, bgcolor=cellColor) )
-#
-#     htmlTable.rows.append(tableRow)
-#
-# resultString += str(htmlTable)
 
 def createDuelCell(rowPlayer, player, isDamage):
     plName = player.name
@@ -1759,8 +1700,6 @@ resultString += str( createPlayersDuelTable(team1, players1ByFrags, players2ByFr
 resultString += "\n"
 resultString += str( createPlayersDuelTable(team2, players2ByFrags, players1ByFrags, True) )
 
-resultString += "\nTeammate telefrags: " + str(teammateTelefrags) + "\n"
-
 # mutual kills 
 resultString += "\nMutual kills: \n"
 for pl in allplayers:
@@ -1797,6 +1736,8 @@ def writeHtmlWithScripts(f, teams, resStr):
     f.write("<!--\nGAME_TEAMS\n" + teamsStr + "-->\n")
     
     f.write("<!--\nCOMBOS\n" + tmpComboStr + "-->\n")  # TEMP!!
+    
+    f.write("<!--\nMATCHDATELOG\n" + matchdateLog + "-->\n")  # TEMP!!
 
     pageHeaderStr = ezstatslib.HTML_HEADER_SCRIPT_SECTION
     pageTitle = "%s %s %s" % ("TEAM", mapName, matchdate)  # global values
@@ -1929,13 +1870,21 @@ def writeHtmlWithScripts(f, teams, resStr):
         if k % 30 == 0:
             tickPositions += "%d," % (k)
 
-    xAxisLabels = \
-        "labels: {\n" \
-        "     formatter: function () {\n" \
-        "       return (this.value / 60).toFixed(1).toString()\n" \
-        "    },\n" \
-        "},\n"
-    xAxisLabels += "tickPositions: [%s]\n" % (tickPositions)
+    # xAxisLabels = \
+        # "labels: {\n" \
+        # "     formatter: function () {\n" \
+        # "       return (this.value / 60).toFixed(1).toString()\n" \
+        # "    },\n" \
+        # "},\n"
+    # xAxisLabels += "tickPositions: [%s]\n" % (tickPositions)
+    
+    xAxisLabels = ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_TICK_POSITIONS
+    xAxisLabels = xAxisLabels.replace("TICK_POSITIONS_VALS", tickPositions)
+    
+    if isOverTime:
+        xAxisLabels += ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE
+        xAxisLabels = xAxisLabels.replace("VERTICAL_LINE_POS", str((minutesPlayedXML-overtimeMinutes)*60))
+    
     highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("EXTRA_XAXIS_OPTIONS", xAxisLabels)
 
     # tooltip style
@@ -2062,9 +2011,7 @@ def writeHtmlWithScripts(f, teams, resStr):
     highchartsBattleProgressFunctionStr = (ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION).replace("highchart_battle_progress", "highchart_battle_progress_players")
 
     highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("GRAPH_TITLE", "Players battle progress")
-    highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("Y_AXIS_TITLE", "Frags")
-
-    highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("EXTRA_XAXIS_OPTIONS", "")
+    highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("Y_AXIS_TITLE", "Frags")    
 
     # " name: 'rea[rbf]',\n" \
     # " data: [0,7,13,18,22,24,29,36,38,42,48]\n" \
@@ -2077,36 +2024,55 @@ def writeHtmlWithScripts(f, teams, resStr):
             rowLines += hcDelim
 
         rowLines += "name: '%s',\n" % (pl.name)
-        # rowLines += "data: [0"
         rowLines += "data: [[0,0]"
 
-        k = 1
-        for minEl in matchProgressPlayers1DictEx:
-            maxFrags = max(maxFrags, minEl[pl.name][0])
-            rowLines += ",[%d,%d]" % (k, minEl[pl.name][0])  # TODO format, now is 0.500000
-            k += 1
+        curSec = -1
+        curSevVal = -1
+        for minEl in matchProgressPlayers1DictEx2:
+            maxFrags = max(maxFrags, minEl[pl.name][1])
+            if curSec == -1 or curSec != int(minEl[pl.name][0]):
+                curSec = int(minEl[pl.name][0])
+                curSevVal = minEl[pl.name][1]
+                rowLines += ",[%d,%d]" % (minEl[pl.name][0], curSevVal)
 
         rowLines += "]\n"
-        rowLines += ",\ndashStyle: 'ShortDash',\n    lineWidth: 3"
+        rowLines += ",\ndashStyle: 'ShortDash'"
 
     for pl in players2:
         if rowLines != "":
             rowLines += hcDelim
 
         rowLines += "name: '%s',\n" % (pl.name)
-        # rowLines += "data: [0"
         rowLines += "data: [[0,0]"
-      
-        k = 1
-        for minEl in matchProgressPlayers2DictEx:
-            maxFrags = max(maxFrags, minEl[pl.name][0])
-            rowLines += ",[%d,%d]" % (k, minEl[pl.name][0])  # TODO format, now is 0.500000
-            k += 1
+
+        curSec = -1
+        curSevVal = -1
+        for minEl in matchProgressPlayers2DictEx2:
+            maxFrags = max(maxFrags, minEl[pl.name][1])
+            if curSec == -1 or curSec != int(minEl[pl.name][0]):
+                curSec = int(minEl[pl.name][0])
+                curSevVal = minEl[pl.name][1]
+                rowLines += ",[%d,%d]" % (minEl[pl.name][0], curSevVal)
 
         rowLines += "]\n"
 
-    highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("MIN_PLAYER_FRAGS", "      min: -15,")
-    highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("MAX_PLAYER_FRAGS", "      max: %d," % (int(maxFrags*1.2))) 
+    matchMinutesCnt = len(matchProgressDict)
+    tickPositions = ""
+    for k in xrange(matchMinutesCnt*60+1):
+        if k % 30 == 0:
+            tickPositions += "%d," % (k)
+
+    xAxisLabels = \
+        "labels: {\n" \
+        "     formatter: function () {\n" \
+        "       return (this.value / 60).toFixed(1).toString()\n" \
+        "    },\n" \
+        "},\n"
+    xAxisLabels += "tickPositions: [%s]\n" % (tickPositions)
+    highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("EXTRA_XAXIS_OPTIONS", xAxisLabels)        
+        
+    highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("MIN_PLAYER_FRAGS", "      min: -10,")
+    highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("MAX_PLAYER_FRAGS", "      max: %d," % (int(maxFrags*1.1)))
         
     highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("ADD_STAT_ROWS", rowLines)
 
@@ -2124,17 +2090,6 @@ def writeHtmlWithScripts(f, teams, resStr):
     # isFirstTeam = False
     # isSecondTeam = False
     for pl in sorted(players1, key=methodcaller("frags"), reverse=True) + sorted(players2, key=methodcaller("frags"), reverse=True):
-
-        # if not isFirstTeam and pl.teamname == players1[0].teamname:
-        #     currentRowsLines += "[ '[%s]', '', '', new Date(2016,1,1,0,0,0,0,1), new Date(2016,1,1,0,0,0,0,2)  ],\n" % (pl.teamname)
-        #     currentRowsLines += "[ '[%s]', '', '', new Date(2016,1,1,0,%d,0,0,1), new Date(2016,1,1,0,%d,0,0,2) ],\n" % (pl.teamname, matchMinutesCnt, matchMinutesCnt)  # global value: matchMinutesCnt
-        #     isFirstTeam = True
-        #
-        # if not isSecondTeam and pl.teamname == players2[0].teamname:
-        #     currentRowsLines += "[ '[%s]', '', '', new Date(2016,1,1,0,0,0,0,1), new Date(2016,1,1,0,0,0,0,2)  ],\n" % (pl.teamname)
-        #     currentRowsLines += "[ '[%s]', '', '', new Date(2016,1,1,0,%d,0,0,1), new Date(2016,1,1,0,%d,0,0,2) ],\n" % (pl.teamname, matchMinutesCnt, matchMinutesCnt)  # global value: matchMinutesCnt
-        #     isSecondTeam = True
-
         strkRes,maxStrk           = pl.getCalculatedStreaksFull(1)
         for strk in strkRes:
             hintStr = "<p>&nbsp&nbsp&nbsp<b>%d: %s</b>&nbsp&nbsp&nbsp</p>" \
@@ -2462,6 +2417,51 @@ def writeHtmlWithScripts(f, teams, resStr):
     f.write(powerUpsTimelineVer2FunctionStr)
     # <-- power ups timeline ver2
 
+    # highcharts RL skill -->
+    # div
+    rlSkillDivStrs = ""
+    rowsCount = (len(allplayersByFrags) / 3) + (0 if len(allplayersByFrags) % 3 == 0 else 1)
+    
+    for rowNum in xrange(rowsCount):
+        rlSkillDivStr = ezstatslib.HTML_SCRIPT_HIGHCHARTS_RL_SKILL_DIV_AND_TABLE_TAG
+        tableRowsStr = ""
+        currentRowCount = 3 if rowNum < (rowsCount-1) or len(allplayersByFrags) % 3 == 0 else len(allplayersByFrags) % 3
+        percentsVal = 100 / currentRowCount
+        for j in xrange(currentRowCount):
+           tRowStr = ezstatslib.HTML_SCRIPT_HIGHCHARTS_RL_SKILL_TABLE_ROW
+           tRowStr = tRowStr.replace("PLAYERNAME", ezstatslib.escapePlayerName(allplayersByFrags[j+rowNum*3].name))
+           tRowStr = tRowStr.replace("TD_WIDTH", "%d" % (percentsVal))
+           tableRowsStr += tRowStr
+           
+        rlSkillDivStr = rlSkillDivStr.replace("TABLE_ROWS", tableRowsStr)
+        rlSkillDivStrs += rlSkillDivStr
+    
+    for pl in allplayersByFrags:
+        rlSkillFunctionStr = (ezstatslib.HTML_SCRIPT_HIGHCHARTS_RL_SKILL_FUNCTION_TEMPLATE).replace("PLAYERNAME", ezstatslib.escapePlayerName(pl.name))
+       
+        cnt = len(pl.rl_damages_gvn)
+        val110 = sum(1 for val in pl.rl_damages_gvn if val[0] == 110)
+        val100 = sum(1 for val in pl.rl_damages_gvn if val[0] < 110 and val[0] >= 100)
+        val90  = sum(1 for val in pl.rl_damages_gvn if val[0] < 100 and val[0] >= 90)
+        val75  = sum(1 for val in pl.rl_damages_gvn if val[0] < 90 and val[0] >= 75)
+        val55  = sum(1 for val in pl.rl_damages_gvn if val[0] < 75 and val[0] >= 55)
+        val0   = sum(1 for val in pl.rl_damages_gvn if val[0] < 55 and val[0] >= 0)
+        
+        rlSkillRowsStr = "['DirectHit110', %d],\n ['(110,100])', %d],\n ['(100,90]', %d], ['(90,75]', %d], ['(75,55]', %d], ['(55,0]', %d]" % (val110, val100, val90, val75, val55, val0)
+
+      # ['DirectHit110', 26.79],
+      # ['(110,100])', 0],
+      # ['(100,90]', 9.92],
+      # ['(90,75]', 26.78],
+      # ['(75,55]', 26.78],
+      # ['(55,0]', 10.71],
+
+        rlSkillFunctionStr = rlSkillFunctionStr.replace("CHART_TITLE", "[%s] %s<br>(%d / %d)" % (pl.teamname, pl.name, cnt, pl.rl_attacks))
+        rlSkillFunctionStr = rlSkillFunctionStr.replace("ADD_ROWS", rlSkillRowsStr)
+        f.write(rlSkillFunctionStr)
+    # <-- highcharts RL skill
+    
+    
     f.write(ezstatslib.HTML_SCRIPT_SECTION_FOOTER)
 
     # add divs
@@ -2484,6 +2484,7 @@ def writeHtmlWithScripts(f, teams, resStr):
     resStr = resStr.replace("TEAM_RESULTS", ezstatslib.HTML_TEAM_RESULTS_FUNCTION_DIV_TAG)
     resStr = resStr.replace("POWER_UPS_TIMELINE_VER2_PLACE", powerUpsTimelineVer2DivStr)
     
+    resStr = resStr.replace("HIGHCHART_RL_SKILL_PLACE", rlSkillDivStrs)
     resStr = resStr.replace("HIGHCHART_PLAYER_LIFETIME_PLACE", playersLifetimeDivStrs)
 
     f.write(resStr)
@@ -2642,3 +2643,8 @@ if os.path.exists(logsIndexPath):
 os.rename(tmpLogsIndexPath, logsIndexPath)
 
 print filePath
+
+print "isOverTime:", isOverTime
+print "timelimit:", timelimit
+print "duration:", duration
+print "minutesPlayedXML:", minutesPlayedXML
