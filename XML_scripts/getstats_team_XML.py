@@ -225,8 +225,6 @@ for child in root:
                         pl = Player( "", elem.attacker, 0, 0, 0 )  #def __init__(self, teamname, name, score, origDelta, teamkills):
                         xmlPlayers.append(pl)
 
-                    
-                        
                 if evtype.tag == "death":
                     deathCnt += 1
                     elem = DeathElement(evtype)
@@ -446,7 +444,8 @@ for pl in jsonPlayers:
             pl.damageGvnArmor = plXML.damageGvnArmor
             pl.damageTknArmor = plXML.damageTknArmor
             pl.damageSelfArmor = plXML.damageSelfArmor
-            pl.lifetimeXML = plXML.lifetimeXML + (minutesPlayedXML*60 - plXML.lastDeathXML.time)
+            # pl.lifetimeXML = plXML.lifetimeXML + (minutesPlayedXML*60 - plXML.lastDeathXML.time)
+            pl.lifetimeXML = plXML.lifetimeXML
             pl.lastDeathXML = plXML.lastDeathXML
             pl.firstDeathXML = plXML.firstDeathXML
             
@@ -1644,7 +1643,11 @@ def createDuelCell(rowPlayer, player, isDamage):
         return HTML.TableCell(cellVal, bgcolor=cellColor)
 
 def createPlayersDuelTable(team, teamPlayers, enemyPlayers, isDamage):
-    headerRow=["[" + team.name + "]", 'Frags', 'Kills', 'Deaths']
+    if isDamage:
+        headerRow=["[" + team.name + "]", 'Frags', 'Given', 'Taken']
+    else:
+        headerRow=["[" + team.name + "]", 'Frags', 'Kills', 'Deaths']
+        
     playersNames = []
     for pl in enemyPlayers:
         headerRow.append(pl.name);
@@ -1666,8 +1669,8 @@ def createPlayersDuelTable(team, teamPlayers, enemyPlayers, isDamage):
     for pl in teamPlayers:
         tableRow = HTML.TableRow(cells=[ezstatslib.htmlBold(pl.name),
                                         ezstatslib.htmlBold(pl.frags()),
-                                        ezstatslib.htmlBold(pl.kills),
-                                        ezstatslib.htmlBold(pl.deaths)])
+                                        ezstatslib.htmlBold(pl.gvn) if isDamage else ezstatslib.htmlBold(pl.kills),
+                                        ezstatslib.htmlBold(pl.tkn) if isDamage else ezstatslib.htmlBold(pl.deaths)])
 
         for pll in enemyPlayers:
             tableRow.cells.append( createDuelCell(pl, pll, isDamage) )
@@ -1714,7 +1717,7 @@ resultString += "\n"
 # lifetimeXML
 resultString += "\nLifetime: \n"
 for pl in allplayers:    
-    resultString += "%s: %f, inactive time: %f,  1st death: time(%f), lifetime(%f)\n" % (pl.name, pl.lifetimeXML, (minutesPlayedXML*60 - pl.lifetimeXML), pl.firstDeathXML.time, pl.firstDeathXML.lifetime)
+    resultString += "%s: %f; inactive time: %f;  1st death: time(%f), lifetime(%f);   last death: time(%f), lifetime(%f)\n" % (pl.name, pl.lifetimeXML, (minutesPlayedXML*60 - pl.lifetimeXML), pl.firstDeathXML.time, pl.firstDeathXML.lifetime, pl.lastDeathXML.time, pl.lastDeathXML.lifetime)
 
 resultString += "\n"
 
@@ -1938,8 +1941,12 @@ def writeHtmlWithScripts(f, teams, resStr):
                 deathLines += deathLine
                 
             else:
-                healthRows += "[%f,%d]," % (lt.time,lt.health)
-                armorRows  += "[%f,%d]," % (lt.time,lt.armor)
+                if lt.health == 200 and lt.armor == 200:
+                    healthRows += "{x: %f, y: %d, color: \"gold\", marker: { enabled: true, symbol: 'url(ezquakestats/img/quake-icon.png)', height: 55, width: 55 }}," % (lt.time,lt.health)
+                    armorRows  += "{x: %f, y: %d, color: \"gold\", marker: { enabled: true, symbol: 'url(ezquakestats/img/quake-icon.png)', height: 55, width: 55 }}," % (lt.time,lt.armor)
+                else:
+                    healthRows += "[%f,%d]," % (lt.time,lt.health)
+                    armorRows  += "[%f,%d]," % (lt.time,lt.armor)
             
         highchartsPlayerLifetimeFunctionStr = highchartsPlayerLifetimeFunctionStr.replace("HEALTH_ROWS", healthRows)
         highchartsPlayerLifetimeFunctionStr = highchartsPlayerLifetimeFunctionStr.replace("ARMOR_ROWS", armorRows)
