@@ -103,9 +103,6 @@ isStart = False
 isEnd = False
 
 allplayers = []
-disconnectedplayers = []
-dropedplayers = []
-spectators = []
 
 readLinesNum = 0
 
@@ -317,6 +314,7 @@ for elem in deathElements:
                 pl.lifetimeXML += elem.lifetime
                 if pl.firstDeathXML == "":
                     pl.firstDeathXML = elem
+                    pl.connectionTimeXML = pl.firstDeathXML.time - pl.firstDeathXML.lifetime
                 pl.lastDeathXML = elem
     else:
 
@@ -333,6 +331,7 @@ for elem in deathElements:
                 pl.lifetimeXML += elem.lifetime
                 if pl.firstDeathXML == "":
                     pl.firstDeathXML = elem
+                    pl.connectionTimeXML = pl.firstDeathXML.time - pl.firstDeathXML.lifetime
                 pl.lastDeathXML = elem
 
 
@@ -800,7 +799,18 @@ for i in xrange(len(elementsByTime)):
             if isAttackerTheSame:
                 for pl in allplayers:
                     if pl.name == attacker:
-                        pl.triple_kills.append([tt,targets[0],targets[1],targets[2],wps[0]])
+                        if attacker != targets[0] and attacker != targets[1] and attacker != targets[2]:
+                            pl.triple_kills.append([tt,targets[0],targets[1],targets[2],wps[0]])
+                        else:
+                            target1 = ""
+                            target2 = ""
+                            for t in targets:
+                                if t != attacker:
+                                    if target1 == "":
+                                        target1 = t
+                                    else:
+                                        target2 = t
+                            pl.double_kills.append([target1,target2,wps[0]])
         
         resStr = ""
         deathNum = 1
@@ -966,9 +976,136 @@ for i in xrange(len(elementsCloseByTime)):
         debugLines += "DEBUG: len(elementsCloseByTime[i][0]) = %d\n" % (len(elementsCloseByTime[i][0])) 
                          
 
+# kill stealing
+chainStartIndex = -1
+CHAIN_MAX_TIME = 20
+eli = 0
+chainsStr = ""
+# while eli < len(elements):
+    # if isinstance(elements[eli], DamageElement):        
+        # chainStartIndex = eli
+        # print "AAA: chainStartIndex", chainStartIndex
+        # chainCurrentIndex = chainStartIndex + 1
+        # chainElementsCount = 0
+        # chainStartTime = elements[eli].time
+        # chainStopTime = 0
+        # attackerDamage = 0
+        # nonAttackerDamage = {}
+        # targetKiller = ""
+        # isChainFinished = False
+        # attacker = elements[eli].attacker
+        # target = elements[eli].target
+        # while not isChainFinished and chainCurrentIndex < len(elements):
+            # if isinstance(elements[chainCurrentIndex], DamageElement) or isinstance(elements[chainCurrentIndex], DeathElement):
+                # if isinstance(elements[chainCurrentIndex], DamageElement) and elements[chainCurrentIndex].attacker == attacker and elements[chainCurrentIndex].target == target:
+                    # chainElementsCount += 1
+                    # attackerDamage += elements[chainCurrentIndex].value
+                    # chainCurrentIndex += 1
+                    
+                # elif isinstance(elements[chainCurrentIndex], DamageElement) and elements[chainCurrentIndex].target == target:
+                    # if not elements[chainCurrentIndex].attacker in nonAttackerDamage.keys():
+                        # nonAttackerDamage[elements[chainCurrentIndex].attacker] = elements[chainCurrentIndex].value
+                    # else:
+                        # nonAttackerDamage[elements[chainCurrentIndex].attacker] += elements[chainCurrentIndex].value
+                    # chainCurrentIndex += 1
+                        
+                # elif isinstance(elements[chainCurrentIndex], DeathElement) and elements[chainCurrentIndex].target == target:
+                    # isChainFinished = True
+                    # targetKiller = elements[chainCurrentIndex].attacker
+                    # chainStopTime = elements[chainCurrentIndex].time
+                    
+                # else:
+                    # chainCurrentIndex += 1
+            
+            # else:
+                # chainCurrentIndex += 1
+
+        # chainTime = chainStopTime - chainStartTime
+        # chainStr = "startTime: %f, attacker: %s, target: %s, killer: %s, time: %d, attackerDamage: %d, nonAttackerDamage: %s\n" % (chainStartTime, attacker, target, targetKiller, chainTime, attackerDamage, nonAttackerDamage)
+        # chainsStr += chainStr
+        
+        # eli = chainStartIndex + 1
+        
+            
+    # else: # isinstance(elements[eli], DamageElement):
+        # eli += 1
+
+chains = []        
+while eli < len(elements):
+    if isinstance(elements[eli], DeathElement):        
+        chainStartIndex = eli
+        chainCurrentIndex = chainStartIndex - 1
+        chainElementsCount = 0
+        chainStopTime = elements[eli].time
+        chainStartTime = 0
+        attackersDamage = {}        
+        isChainFinished = False
+        killer = elements[eli].attacker
+        target = elements[eli].target
+        while not isChainFinished and chainCurrentIndex > 0:
+            if isinstance(elements[chainCurrentIndex], DamageElement) or isinstance(elements[chainCurrentIndex], DeathElement):
+                if isinstance(elements[chainCurrentIndex], DamageElement) and elements[chainCurrentIndex].target == target:
+                    chainElementsCount += 1
+                    if not elements[chainCurrentIndex].attacker in attackersDamage.keys():
+                        attackersDamage[elements[chainCurrentIndex].attacker] = elements[chainCurrentIndex].value
+                    else:
+                        attackersDamage[elements[chainCurrentIndex].attacker] += elements[chainCurrentIndex].value
+                    chainCurrentIndex -= 1
+                        
+                elif isinstance(elements[chainCurrentIndex], DeathElement) and elements[chainCurrentIndex].target == target:
+                    isChainFinished = True
+                    chainStartTime = elements[chainCurrentIndex].time
+                    
+                else:
+                    chainCurrentIndex -= 1
+            
+            else:
+                chainCurrentIndex -= 1
+
+        chainTime = chainStopTime - chainStartTime
+        chains.append([chainStartTime, target, killer, chainTime, attackersDamage])
+        # chainStr = "startTime: %f, target: %s, killer: %s, time: %d, attackersDamage: %s\n" % (chainStartTime, target, killer, chainTime, attackersDamage)
+        # chainsStr += chainStr
+        
+        eli = chainStartIndex + 1
+                    
+    else: 
+        eli += 1
+
+for chain in chains:
+    chStartTime = chain[0]
+    chTarget = chain[1]
+    chKiller = chain[2]
+    chTime = chain[3]
+    chAttackers = chain[4]
+    if chKiller != chTarget and len(chAttackers) > 1:
+        killerDamage = 0
+        selfDamage = 0
+        nonKillerMaxDamage = 0
+        nonKillerDamage = 0
+        nonKillerMaxDamageName = ""
+        for attackerKey in chAttackers.keys():
+            if attackerKey == chKiller:
+                killerDamage = chAttackers[attackerKey]
+            elif attackerKey == chTarget:
+                selfDamage = chAttackers[attackerKey]
+            else:
+                if attackerKey != "world":
+                    nonKillerDamage += chAttackers[attackerKey]
+                if chAttackers[attackerKey] > nonKillerMaxDamage:
+                    nonKillerMaxDamage = chAttackers[attackerKey]
+                    nonKillerMaxDamageName = attackerKey
+                    
+        if (2*killerDamage < nonKillerMaxDamage or 3*killerDamage < nonKillerDamage) and killerDamage < 40:
+            chainStr = "KILL STEAL by %s: startTime: %f, target: %s, killer: %s, time: %d, attackersDamage: %s\n" % (nonKillerMaxDamageName, chStartTime, chTarget, chKiller, chTime, chAttackers)
+            chainsStr += chainStr
+        
+        
 tmpComboStr += debugLines
 tmpComboStr += "\n"
 tmpComboStr += linesStr        
+tmpComboStr += "\n"
+tmpComboStr += chainsStr        
 
 # check that there at least one kill
 killsSumOrig = 0
@@ -1049,11 +1186,11 @@ for pl in allplayers:
 for pl in allplayers:
     pl.calculateAchievements(matchProgress, powerUpsStatus, headToHead, isTeamGame = False)
     
-ezstatslib.calculateCommonAchievements(allplayers, headToHead, isTeamGame = False)
+ezstatslib.calculateCommonAchievements(allplayers, headToHead, minutesPlayedXML, isTeamGame = False, headToHeadDamage = headToHeadDamage)
 
-# sort by level
+# sort by level and type
 for pl in allplayers:
-    pl.achievements = sorted(pl.achievements, key=lambda x: (x.achlevel), reverse=False)
+    pl.achievements = sorted(pl.achievements, key=lambda x: (x.achlevel, x.achtype), reverse=False)
 
 # remove elements with one timestamp - the last one for same time should be left    
 for pl in allplayers:
@@ -1382,33 +1519,6 @@ if options.withScripts:
 if options.withScripts:
     resultString += "</pre>POWER_UPS_TIMELINE_VER2_PLACE\n<pre>"
 
-if len(dropedplayers) != 0:
-    dropedStr = ""
-    for pl in dropedplayers:
-        dropedStr += "%s(drop time: %d)," % (pl.name, pl.disconnectTime)
-
-    dropedStr = dropedStr[:-1]
-    resultString += "Droped players: " + dropedStr + "\n"
-
-if len(spectators) != 0:
-    resultString += "Spectators: " + str(spectators) + "\n"
-
-if len(disconnectedplayers) != 0:
-    resultString += "\n"
-    resultString += "Disconnected players: " + str(disconnectedplayers) + "\n"
-    resultString += "\n"
-    
-connectedPlayersStr = ""
-for pl in allplayersByFrags:
-    if pl.connectTime != 0:
-        connectedPlayersStr += "%s(connect time: %d), " % (pl.name, pl.connectTime)
-    
-if connectedPlayersStr != "":
-    connectedPlayersStr = connectedPlayersStr[:-1]
-    resultString += "\n"
-    resultString += "Connected players: " + connectedPlayersStr[:-1] + "\n"
-    resultString += "\n"
-
 print "currentMinute:", currentMinute
 print "matchMinutesCnt:", matchMinutesCnt
 for pl in allplayersByFrags:
@@ -1447,8 +1557,11 @@ resultString += "\n"
 resultString += "\nLifetime: \n"
 for pl in allplayers:    
     resultString += "%s: %f; inactive time: %f;  1st death: time(%f), lifetime(%f);   last death: time(%f), lifetime(%f)\n" % (pl.name, pl.lifetimeXML, (minutesPlayedXML*60 - pl.lifetimeXML), pl.firstDeathXML.time, pl.firstDeathXML.lifetime, pl.lastDeathXML.time, pl.lastDeathXML.lifetime)
+    resultString += "\tconnectionTime: %f, playTime: %f\n" % (pl.connectionTimeXML, pl.playTimeXML())
 
 resultString += "\n"
+
+resultString += chainsStr
     
 # print resultString  RESULTPRINT
 
@@ -2225,8 +2338,18 @@ def writeHtmlWithScripts(f, sortedPlayers, resStr):
     for pl in sortedPlayers:
         if len(pl.achievements) != 0:
             tableRow = HTML.TableRow(cells=[ HTML.TableCell(ezstatslib.htmlBold(pl.name), align="center", width=cellWidth) ])  # TODO player name cell width
-            for ach in pl.achievements:
-                tableRow.cells.append( HTML.TableCell(ach.generateHtmlEx(), align="center" ) )
+            achIds = pl.getAchievementsIds()
+            i = 0
+            while i < len(pl.achievements):
+                if achIds.count(pl.achievements[i].achtype) == 1:
+                    tableRow.cells.append( HTML.TableCell(pl.achievements[i].generateHtmlEx(), align="center" ) )
+                    i += 1
+                else:
+                    totalExtraInfo = ""
+                    for j in xrange(achIds.count(pl.achievements[i].achtype)):
+                        totalExtraInfo += "%d) %s\n" % (j+1, pl.achievements[i+j].extra_info)
+                    tableRow.cells.append( HTML.TableCell(ezstatslib.Achievement.generateHtmlExCnt(pl.achievements[i], totalExtraInfo, achIds.count(pl.achievements[i].achtype)), align="center" ) ) 
+                    i += achIds.count(pl.achievements[i].achtype)
             
             achievementsHtmlTable.rows.append(tableRow)
         

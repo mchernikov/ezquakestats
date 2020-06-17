@@ -425,7 +425,6 @@ matchProgressPlayers2DictEx2 = []
 players1 = []
 players2 = []
 allplayers = []
-# disconnectedplayers = []
 
 for pl in jsonPlayers:
     for plXML in xmlPlayers:
@@ -448,6 +447,7 @@ for pl in jsonPlayers:
             pl.lifetimeXML = plXML.lifetimeXML
             pl.lastDeathXML = plXML.lastDeathXML
             pl.firstDeathXML = plXML.firstDeathXML
+            pl.connectionTimeXML = plXML.firstDeathXML.time - plXML.firstDeathXML.lifetime
             
             if len(rlAttacksByPlayers) != 0:
                 try:
@@ -948,7 +948,18 @@ for i in xrange(len(elementsByTime)):
                 if targetsTeam != "-1" and targetsTeam != "" and targetsTeam != attackTeam:
                     for pl in allplayers:
                         if pl.name == attacker:
-                            pl.triple_kills.append([tt,targets[0],targets[1],targets[2],wps[0]])
+                            if attacker != targets[0] and attacker != targets[1] and attacker != targets[2]:
+                                pl.triple_kills.append([tt,targets[0],targets[1],targets[2],wps[0]])
+                            else:
+                                target1 = ""
+                                target2 = ""
+                                for t in targets:
+                                    if t != attacker:
+                                        if target1 == "":
+                                            target1 = t
+                                        else:
+                                            target2 = t
+                                pl.double_kills.append([target1,target2,wps[0]])
         
         resStr = ""
         deathNum = 1
@@ -1316,11 +1327,11 @@ for pl in allplayers:
     pl.calculateAchievements([], powerUpsStatus, headToHead, isTeamGame = True)
     #pl.calculateAchievements(matchProgress, powerUpsStatus, headToHead)
 
-ezstatslib.calculateCommonAchievements(allplayers, headToHead, isTeamGame = True, headToHeadDamage = headToHeadDamage)
+ezstatslib.calculateCommonAchievements(allplayers, headToHead, minutesPlayedXML, isTeamGame = True, headToHeadDamage = headToHeadDamage)
 
-# sort by level
+# sort by level and type
 for pl in allplayers:
-    pl.achievements = sorted(pl.achievements, key=lambda x: (x.achlevel), reverse=False)
+    pl.achievements = sorted(pl.achievements, key=lambda x: (x.achlevel, x.achtype), reverse=False)
     
 # remove elements with one timestamp - the last one for same time should be left    
 for pl in allplayers:
@@ -1572,10 +1583,6 @@ if options.withScripts:
 if options.withScripts:    
     resultString += "\n</pre>HIGHCHART_PLAYER_LIFETIME_PLACE\n<pre>"
 
-# if len(disconnectedplayers) != 0:
-    # resultString += "\n"
-    # resultString += "Disconnected players:" + str(disconnectedplayers) + "\n"
-
 # H2H stats
 resultString += "\n"
 resultString += "Head-to-Head stats (who :: whom)\n"
@@ -1718,6 +1725,7 @@ resultString += "\n"
 resultString += "\nLifetime: \n"
 for pl in allplayers:    
     resultString += "%s: %f; inactive time: %f;  1st death: time(%f), lifetime(%f);   last death: time(%f), lifetime(%f)\n" % (pl.name, pl.lifetimeXML, (minutesPlayedXML*60 - pl.lifetimeXML), pl.firstDeathXML.time, pl.firstDeathXML.lifetime, pl.lastDeathXML.time, pl.lastDeathXML.lifetime)
+    resultString += "\tconnectionTime: %f, playTime: %f\n" % (pl.connectionTimeXML, pl.playTimeXML())
 
 resultString += "\n"
 
@@ -2294,8 +2302,18 @@ def writeHtmlWithScripts(f, teams, resStr):
     for pl in allplayersByFrags:
         if len(pl.achievements) != 0:
             tableRow = HTML.TableRow(cells=[ HTML.TableCell(ezstatslib.htmlBold(pl.name), align="center", width=cellWidth) ])  # TODO player name cell width
-            for ach in pl.achievements:
-                tableRow.cells.append( HTML.TableCell(ach.generateHtmlEx(), align="center" ) )
+            achIds = pl.getAchievementsIds()
+            i = 0
+            while i < len(pl.achievements):
+                if achIds.count(pl.achievements[i].achtype) == 1:
+                    tableRow.cells.append( HTML.TableCell(pl.achievements[i].generateHtmlEx(), align="center" ) )
+                    i += 1
+                else:
+                    totalExtraInfo = ""
+                    for j in xrange(achIds.count(pl.achievements[i].achtype)):
+                        totalExtraInfo += "%d) %s\n" % (j+1, pl.achievements[i+j].extra_info)
+                    tableRow.cells.append( HTML.TableCell(ezstatslib.Achievement.generateHtmlExCnt(pl.achievements[i], totalExtraInfo, achIds.count(pl.achievements[i].achtype)), align="center" ) ) 
+                    i += achIds.count(pl.achievements[i].achtype)
 
             achievementsHtmlTable.rows.append(tableRow)
 
