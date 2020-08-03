@@ -22,7 +22,7 @@ import ezstatslib
 from ezstatslib import Team,Player
 from ezstatslib import enum,checkNew,htmlLink
 from ezstatslib import NEW_GIF_TAG as newGifTag
-from ezstatslib import PickMapItemElement,DamageElement,DeathElement
+from ezstatslib import PickMapItemElement,DamageElement,DeathElement,KillSteal
 
 import HTML
 
@@ -31,6 +31,8 @@ import json
 from stat import S_ISREG, ST_CTIME, ST_MODE, ST_SIZE, ST_MTIME
 
 import xml.etree.ElementTree as ET
+
+from collections import Counter
 
 ezstatslib.REPORTS_FOLDER = stat_conf.reports_dir
 ezstatslib.LOGS_INDEX_FILE_NAME = "index.html"
@@ -203,7 +205,9 @@ for child in root:
                 if evtype.tag == "damage":
                     damageCnt += 1
                     elem = DamageElement(evtype)
-
+                    
+                    if elem.target == None or elem.attacker == None:
+                        continue
 #                    print "IsSelf: %s" % (elem.isSelfDamage)
 
                     elements.append(elem)
@@ -337,32 +341,51 @@ for elem in deathElements:
 
 
 for elem in pickmapitemElements:
-    #print "%f  %s -> %s  \"%s\"  %f" % (elem.time, elem.attacker, elem.target, elem.type, elem.lifetime)
-    #print "%f" % (elem.lifetime)
+    # #print "%f  %s -> %s  \"%s\"  %f" % (elem.time, elem.attacker, elem.target, elem.type, elem.lifetime)
+    # #print "%f" % (elem.lifetime)
+
+    if int(elem.time) == minutesPlayedXML*60:
+        elem.time = minutesPlayedXML*60 - 1  # correction for events in the match end with timestamp more than minPlayed*60
 
     for pl in xmlPlayers:
         if pl.name == elem.player:
-            if elem.isArmor:
-                if elem.armorType == ezstatslib.PowerUpType.RA:
-                    pl.raXML += 1
-                    pl.incraXML(int(elem.time))
-                if elem.armorType == ezstatslib.PowerUpType.YA:
-                    pl.yaXML += 1
-                    pl.incyaXML(int(elem.time))
-                if elem.armorType == ezstatslib.PowerUpType.GA:
-                    pl.gaXML += 1
-                    pl.incgaXML(int(elem.time))
+            if not elem.isArmor and not elem.isMH:
+                if "item_" in elem.item:
+                    itemName = elem.item.replace("item_", "")
+                    if not itemName in pl.pickups_items.keys():
+                        pl.pickups_items[itemName] = 1
+                    else:
+                        pl.pickups_items[itemName] += 1
+                elif "weapon_" in elem.item:
+                    weaponName = elem.item.replace("weapon_", "")
+                    if not weaponName in pl.pickups_weapons.keys():
+                        pl.pickups_weapons[weaponName] = 1
+                    else:
+                        pl.pickups_weapons[weaponName] += 1
+                elif "health_15" == elem.item or "health_25" == elem.item:
+                    exec("pl.%s_cnt += 1;" % (elem.item))
+                    
+            # if elem.isArmor:
+                # if elem.armorType == ezstatslib.PowerUpType.RA:
+                    # pl.raXML += 1
+                    # pl.incraXML(int(elem.time))
+                # if elem.armorType == ezstatslib.PowerUpType.YA:
+                    # pl.yaXML += 1
+                    # pl.incyaXML(int(elem.time))
+                # if elem.armorType == ezstatslib.PowerUpType.GA:
+                    # pl.gaXML += 1
+                    # pl.incgaXML(int(elem.time))
 
-            if elem.isMH:
-                pl.mhXML += 1
-                pl.incmhXML(int(elem.time))
+            # if elem.isMH:
+                # pl.mhXML += 1
+                # pl.incmhXML(int(elem.time))
 
-for pl in xmlPlayers:
-    print "Player \"%s\": kills:  %d, deaths:  %d, suicides:  %d, spawns:  %d, ga: %d, ya: %d, ra: %d, mh: %d" % (pl.name, pl.killsXML, pl.deathsXML, pl.suicidesXML, pl.spawnFragsXML, pl.gaXML, pl.yaXML, pl.raXML, pl.mhXML)
-    print "    ga: %s" % (pl.gaByMinutesXML)
-    print "    ya: %s" % (pl.yaByMinutesXML)
-    print "    ra: %s" % (pl.raByMinutesXML)
-    print "    mh: %s" % (pl.mhByMinutesXML)
+# for pl in xmlPlayers:
+    # print "Player \"%s\": kills:  %d, deaths:  %d, suicides:  %d, spawns:  %d, ga: %d, ya: %d, ra: %d, mh: %d" % (pl.name, pl.killsXML, pl.deathsXML, pl.suicidesXML, pl.spawnFragsXML, pl.gaXML, pl.yaXML, pl.raXML, pl.mhXML)
+    # print "    ga: %s" % (pl.gaByMinutesXML)
+    # print "    ya: %s" % (pl.yaByMinutesXML)
+    # print "    ra: %s" % (pl.raByMinutesXML)
+    # print "    mh: %s" % (pl.mhByMinutesXML)
 
 
 timelimit = -1
@@ -378,6 +401,11 @@ if not options.inputFileJSON is None and options.inputFileJSON != "":
         
         for pl in jsonStrRead["players"]:
             rlAttacksByPlayers[pl["name"]] = pl["weapons"]["rl"]["acc"]["attacks"];
+            
+            for pll in xmlPlayers:
+                if pll.name == pl["name"]:
+                    pll.speed_max = pl["speed"]["max"];
+                    pll.speed_avg = pl["speed"]["avg"];
 
     isOverTime = minutesPlayedXML != timelimit;
     overtimeMinutes = minutesPlayedXML - timelimit
@@ -559,6 +587,7 @@ for element in elements:
             if pl.name == checkname:                    
                 if element.isArmor or element.isMH:
                     exec("pl.inc%s(%d,%d)" % (pwr, currentMinute, currentMatchTime))
+                    exec("pl.%s += 1" % (pwr))
                 isFound = True
                 pl.addLifetimeItem(element)
                 break;
@@ -975,8 +1004,35 @@ for i in xrange(len(elementsCloseByTime)):
     elif len(elementsCloseByTime[i][0]) > 3:
         debugLines += "DEBUG: len(elementsCloseByTime[i][0]) = %d\n" % (len(elementsCloseByTime[i][0])) 
                          
-
+# DH at point-blank range
+dhCount = 0
+for i in xrange(len(elementsByTime)):
+    isDH = False
+    dhAttacker = ""
+    dhTarget = ""
+    for j in xrange(len(elementsByTime[i][1])):
+        if isinstance(elementsByTime[i][1][j], DamageElement):
+            if elementsByTime[i][1][j].value == 110 or (j+1 < len(elementsByTime[i][1]) and elementsByTime[i][1][j].armor == 1 and isinstance(elementsByTime[i][1][j+1], DamageElement) and elementsByTime[i][1][j+1].target == elementsByTime[i][1][j].target and elementsByTime[i][1][j].value + elementsByTime[i][1][j+1].value == 110):
+                dhCount += 1
+                isDH = True
+                dhAttacker = elementsByTime[i][1][j].attacker
+                dhTarget = elementsByTime[i][1][j].target
+                
+    if isDH:
+        selfDamage = 0
+        for j in xrange(len(elementsByTime[i][1])):
+            if isinstance(elementsByTime[i][1][j], DamageElement):
+                if elementsByTime[i][1][j].attacker == dhAttacker and elementsByTime[i][1][j].target == dhAttacker:
+                    selfDamage += elementsByTime[i][1][j].value
+                    
+        for pl in allplayers:
+            if pl.name == dhAttacker:
+                pl.rl_dhs_selfdamage.append(selfDamage)
+                                
+        debugLines += "DEBUG: DH: time: %f, attacker: %s, target: %s, selfDamage: %d\n" % (elementsByTime[i][0], dhAttacker, dhTarget, selfDamage)
+                  
 # kill stealing
+killSteals = []
 chainStartIndex = -1
 CHAIN_MAX_TIME = 20
 eli = 0
@@ -1078,7 +1134,7 @@ for chain in chains:
     chKiller = chain[2]
     chTime = chain[3]
     chAttackers = chain[4]
-    if chKiller != chTarget and len(chAttackers) > 1:
+    if chKiller != chTarget and len(chAttackers) > 1 and chKiller != "world":
         killerDamage = 0
         selfDamage = 0
         nonKillerMaxDamage = 0
@@ -1097,7 +1153,12 @@ for chain in chains:
                     nonKillerMaxDamageName = attackerKey
                     
         if (2*killerDamage < nonKillerMaxDamage or 3*killerDamage < nonKillerDamage) and killerDamage < 40:
-            chainStr = "KILL STEAL by %s: startTime: %f, target: %s, killer: %s, time: %d, attackersDamage: %s\n" % (nonKillerMaxDamageName, chStartTime, chTarget, chKiller, chTime, chAttackers)
+            chainStr = "KILL STEAL: %s stole from %s: startTime: %f, target: %s, time: %d, attackersDamage: %s\n" % (chKiller, nonKillerMaxDamageName, chStartTime, chTarget, chTime, chAttackers)
+            killSteals.append( KillSteal(chStartTime, chKiller, chTarget, nonKillerMaxDamageName, chAttackers, 1) );
+            chainsStr += chainStr
+        elif (1.5*killerDamage < nonKillerMaxDamage or 2.5*killerDamage < nonKillerDamage) and killerDamage < 50 and selfDamage < 45:
+            chainStr = "50%% KILL STEAL: %s stole from %s: startTime: %f, target: %s, time: %d, attackersDamage: %s\n" % (chKiller, nonKillerMaxDamageName, chStartTime, chTarget, chTime, chAttackers)
+            killSteals.append( KillSteal(chStartTime, chKiller, chTarget, nonKillerMaxDamageName, chAttackers, 0.5) );
             chainsStr += chainStr
         
         
@@ -1106,6 +1167,14 @@ tmpComboStr += "\n"
 tmpComboStr += linesStr        
 tmpComboStr += "\n"
 tmpComboStr += chainsStr        
+
+# process kill steals
+for ks in killSteals:
+    for pl in allplayers:
+        if pl.name == ks.stealer:
+            pl.killsteals_stealer.append(ks)
+        if pl.name == ks.stealvictim:
+            pl.killsteals_victim.append(ks)
 
 # check that there at least one kill
 killsSumOrig = 0
@@ -1242,13 +1311,21 @@ resultString += "SpawnFrags: " + " [ " + ezstatslib.sortPlayersBy(allplayers,"sp
 resultString += "\n"
 # resultString += "RL skill DH:" + " [ " + ezstatslib.sortPlayersBy(allplayers, "rlskill_dh") + " ]\n"
 # resultString += "RL skill AD:" + " [ " + ezstatslib.sortPlayersBy(allplayers, "rlskill_ad") + " ]\n"
-resultString += "\n"
+# resultString += "\n"
 # resultString += "Weapons:\n"
 # resultString += "RL:         " + " [ " + ezstatslib.sortPlayersBy(allplayers, "w_rl", units="%") + " ]\n"
 # resultString += "LG:         " + " [ " + ezstatslib.sortPlayersBy(allplayers, "w_lg", units="%") + " ]\n"
 # resultString += "GL:         " + " [ " + ezstatslib.sortPlayersBy(allplayers, "w_gl", units="%") + " ]\n"
 # resultString += "SG:         " + " [ " + ezstatslib.sortPlayersBy(allplayers, "w_sg", units="%") + " ]\n"
 # resultString += "SSG:        " + " [ " + ezstatslib.sortPlayersBy(allplayers, "w_ssg", units="%") + " ]\n"
+resultString += "\n"
+
+resultString += "Health15:   " + " [" +  ezstatslib.sortPlayersBy(allplayers,"health_15_cnt") + "]\n"
+resultString += "Health25:   " + " [" +  ezstatslib.sortPlayersBy(allplayers,"health_25_cnt") + "]\n"
+resultString += "\n"
+
+resultString += "Max speed:   " + " [" +  ezstatslib.sortPlayersBy(allplayers,"speed_max") + "]\n"
+resultString += "Avg speed:   " + " [" +  ezstatslib.sortPlayersBy(allplayers,"speed_avg") + "]\n"
 resultString += "\n"
 
 resultString += "Players weapons:\n"
@@ -1263,6 +1340,8 @@ for pl in allplayersByFrags:
     resultString += ("{0:%ds} self  {1:4d} :: {2:100s}\n" % (plNameMaxLen)).format("", pl.damageSelf+pl.damageSelfArmor, pl.getWeaponsDamageSelf(pl.damageSelf+pl.damageSelfArmor, weaponsCheck))
     # resultString += ("{0:%ds} avg damage :: {1:100s}\n" % (plNameMaxLen)).format("", pl.getWeaponsAccuracy(weaponsCheck))  TODO
     resultString += ("{0:%ds} rl skill   :: {1:200s}\n" % (plNameMaxLen)).format("", pl.getRLSkill())
+    resultString += ("{0:%ds} pickups    :: {1:200s}\n" % (plNameMaxLen)).format("", pl.getWeaponsPickUps())
+    resultString += ("{0:%ds} ammo       :: {1:200s}\n" % (plNameMaxLen)).format("", pl.getAmmoPickUps())
     resultString += "\n"
     resultString += "\n"
 
@@ -1450,6 +1529,72 @@ for pl in allplayersByFrags:
 
 resultString += str(htmlTable)
 
+# Players damage per kill duels table
+resultString += "\n"
+resultString += "Players damage per kill duels:<br>"
+headerRow=['', 'Kills', 'Deaths', 'Damage/kill', 'Damage/death']
+playersNames = []
+for pl in allplayersByFrags:
+    headerRow.append(pl.name);
+    playersNames.append(pl.name)
+
+colAlign=[]
+for i in xrange(len(headerRow)):
+    colAlign.append("center")
+
+htmlTable = HTML.Table(header_row=headerRow, border="2", cellspacing="3", col_align=colAlign,
+                       style="font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 12pt;")
+
+for pl in allplayersByFrags:
+    tableRow = HTML.TableRow(cells=[ezstatslib.htmlBold(pl.name),
+                                    ezstatslib.htmlBold(pl.kills),
+                                    ezstatslib.htmlBold(pl.deaths),
+                                    ezstatslib.htmlBold(pl.gvn / pl.kills),
+                                    ezstatslib.htmlBold(pl.tkn / pl.deaths)])
+        
+    for plName in playersNames:
+        if pl.name == plName:
+            tableRow.cells.append( HTML.TableCell(str((pl.damageSelf+pl.damageSelfArmor)/pl.suicides if pl.suicides != 0 else 0), bgcolor=ezstatslib.BG_COLOR_GRAY) )
+        else:            
+            plDamageGvn = 0
+            for val in headToHeadDamage[pl.name]:
+                if val[0] == plName:
+                    plDamageGvn = val[1]
+            
+            plDamageTkn = 0
+            for val in headToHeadDamage[plName]:
+                if val[0] == pl.name:
+                    plDamageTkn = val[1]
+                    
+            plKills = 0
+            for val in headToHead[pl.name]:
+                if val[0] == plName:
+                    plKills = val[1]
+            
+            plDeaths = 0
+            for val in headToHead[plName]:
+                if val[0] == pl.name:
+                    plDeaths = val[1]
+            
+            plDamagePerKill = (plDamageGvn / plKills) if plKills != 0 else 0
+            plDamagePerDeath = (plDamageTkn / plDeaths) if plDeaths != 0 else 0
+            
+            cellVal = "%s / %s" % (ezstatslib.htmlBold(plDamagePerKill)  if plDamagePerKill  > plDamagePerDeath else str(plDamagePerKill),
+                                   ezstatslib.htmlBold(plDamagePerDeath) if plDamagePerDeath > plDamagePerKill  else str(plDamagePerDeath))
+            
+            cellColor = ""
+            if plDamagePerKill == plDamagePerDeath:
+                cellColor = ezstatslib.BG_COLOR_LIGHT_GRAY
+            elif plDamagePerKill > plDamagePerDeath:
+                cellColor = ezstatslib.BG_COLOR_GREEN
+            else:
+                cellColor = ezstatslib.BG_COLOR_RED
+            
+            tableRow.cells.append( HTML.TableCell(cellVal, bgcolor=cellColor) )
+            
+    htmlTable.rows.append(tableRow)  
+
+resultString += str(htmlTable)
 
 
 i = 1
@@ -1562,6 +1707,18 @@ for pl in allplayers:
 resultString += "\n"
 
 resultString += chainsStr
+
+resultString += "\n"
+resultString += "\nDHs self damages: \n"
+for pl in allplayers:
+    zeroCount = sum(1 for val in pl.rl_dhs_selfdamage if val == 0)
+    valFrom1To25 = sum(1 for val in pl.rl_dhs_selfdamage if val > 0 and val <= 25)
+    valFrom26To45 = sum(1 for val in pl.rl_dhs_selfdamage if val > 25 and val <= 45)
+    valFrom46To55 = sum(1 for val in pl.rl_dhs_selfdamage if val > 45 and val <= 55)
+    valFrom56 = sum(1 for val in pl.rl_dhs_selfdamage if val > 55)
+    
+    #resultString += "%s(%d): 0: %d, (0,25]: %d, (25,45]: %d, (45,55]: %d, >55: %d, %s\n" % (pl.name, len(pl.rl_dhs_selfdamage), zeroCount, valFrom1To25, valFrom26To45, valFrom46To55, valFrom56, pl.rl_dhs_selfdamage)
+    resultString += "{0:25s}: 0:{1:3d}, (0,25]:{2:3d}, (25,45]:{3:3d}, (45,55]:{4:3d}, >55:{5:3d}, {6}\n".format("%s(%d)" % (pl.name, len(pl.rl_dhs_selfdamage)), zeroCount, valFrom1To25, valFrom26To45, valFrom46To55, valFrom56, pl.rl_dhs_selfdamage)
     
 # print resultString  RESULTPRINT
 
@@ -2930,27 +3087,33 @@ os.rename(tmpLogsIndexPath, logsIndexPath)
 
 # save to json
 def encode_Player(pl):
-    # if isinstance(z, complex):
-        # return (z.real, z.imag)
-    # else:
-        # type_name = z.__class__.__name__
-        # raise TypeError(f"Object of type '{type_name}' is not JSON serializable")
-	# return (pl.name, pl.frags, pl.ga, pl.suicides)
-	if isinstance(pl, Player):
-		return {"name":pl.name, "frags":pl.frags(), "ga":pl.ga, "suicides":pl.suicides, "deaths":pl.deaths, "ya":pl.ya, "ra":pl.ra, "mh":pl.mh}
-		# return (pl.name, pl.frags(), pl.ga, pl.suicides)
+    if isinstance(pl, Player):
+        return { "name"     : pl.name, 
+                 "frags"    : pl.frags(),
+                 "ga"       : pl.ga,
+                 "suicides" : pl.suicides,
+                 "deaths"   : pl.deaths,
+                 "ya"       : pl.ya,
+                 "ra"       : pl.ra, 
+                 "mh"       : pl.mh,
+                 "achievements" : pl.getAchievementsJSON(),
+                 "rlskill" : pl.getRLSkillJSON()
+               }
 
-str = "["
-# json.dump(allplayersByFrags, write_file, default=encode_Player)
+str = "{"        
+str += "\"gamemode\": \"%s\"," % (gameMode)
+str += "\"mapname\": \"%s\"," % (mapName)
+str += "\"players\": ["
 for pl in allplayersByFrags:
-	if str != "[":
-		str += ','
-	str += json.dumps(pl, default=encode_Player, indent=4)	
+    str += json.dumps(pl, default=encode_Player, indent=4)    
+    str += ','
+str = str[:-1]
 str += "]"
+str += "}"
 
 # with open("data_file.json", "w") as write_file:    
-	# for pl in allplayersByFrags:
-		# json.dump(pl, write_file, default=encode_Player, indent=4)	
+    # for pl in allplayersByFrags:
+        # json.dump(pl, write_file, default=encode_Player, indent=4)    
 
 # print str
 
@@ -2959,16 +3122,16 @@ jsonPath += ".json"
 jsonf = open(jsonPath, "w")  # TODO check and create folder if needed
 jsonf.write(str)
 jsonf.close()
-	
+    
 ooo = json.loads(str)
 
-print ooo
-for oo in ooo:
-	print oo
-	for o in oo:
-		print o, ":", oo[o]
-	
-print filePath    
+# print ooo
+# for oo in ooo:
+    # print oo
+    # for o in oo:
+        # print o, ":", oo[o]
+    
+print filePath
 
 jsonDirPath = ezstatslib.REPORTS_FOLDER + "json/"
 entries = (os.path.join(jsonDirPath, fn) for fn in os.listdir(jsonDirPath))
@@ -2977,123 +3140,172 @@ entries = ((os.stat(path), path) for path in entries if ".json" in path)
 entries = ((stat[ST_MTIME], stat[ST_SIZE], path) for stat, path in entries if S_ISREG(stat[ST_MODE]))
 
 class JsonPlayer:
-	def __init__(self):
-		self.name = ""
-		self.frags = 0
-		self.deaths = 0
-		self.suicides = 0
-		self.ra = 0
-		self.ya = 0
-		self.ga = 0
-		self.mh = 0
-		
-		self.matchesPlayed = 0
-		
-		self.fragsByMatches = []
-		self.fragsByMatchesPairs = []
-		
-		self.rankByMatches = []
-		self.rankByMatchesPairs = []
+    def __init__(self):
+        self.name = ""
+        self.frags = 0
+        self.deaths = 0
+        self.suicides = 0
+        self.ra = 0
+        self.ya = 0
+        self.ga = 0
+        self.mh = 0
+        
+        self.achievements = {}
+        self.rlskill = {}
+        
+        self.matchesPlayed = 0
+        
+        self.fragsByMatches = []
+        self.fragsByMatchesPairs = []
+        
+        self.rankByMatches = []
+        self.rankByMatchesPairs = []
 
 jsonPlayers = []
 allCDates = set()
-	
+    
 for cdate, size, path in sorted(entries, reverse=False):
-    #print time.ctime(cdate), size, os.path.basename(path)	
-	print "AAA", cdate, size, path
-	
-	dateRes = re.search("(?<=]_).*(?=.html.json)", path)                  
-	dt = datetime.strptime(dateRes.group(0), "%Y-%m-%d_%H_%M_%S")
-	dateStruct = datetime.strptime(dateRes.group(0).split("_")[0], "%Y-%m-%d")
-	
-	allCDates.add(dt)	
-	
-	with open(path, 'r') as f:
-		jsonStrRead = json.load(f)
-		print "JJJ", jsonStrRead
-		for oo in jsonStrRead:
-			currentJsonPlayer = JsonPlayer()
-			currentJsonPlayer.matchesPlayed = 1
-			for o in oo:
-				print o, ":", oo[o]
-				# exec("currentJsonPlayer.%s = %s" % (o, oo[o]))
-				if o == "name":
-					currentJsonPlayer.name = oo[o]
-				if o == "frags":
-					currentJsonPlayer.frags = oo[o]
-				if o == "suicides":
-					currentJsonPlayer.suicides = oo[o]
-				if o == "ga":
-					currentJsonPlayer.ga = oo[o]
-				if o == "ya":
-					currentJsonPlayer.ya = oo[o]
-				if o == "ra":
-					currentJsonPlayer.ra = oo[o]
-				if o == "mh":
-					currentJsonPlayer.mh = oo[o]
-				if o == "deaths":
-					currentJsonPlayer.deaths = oo[o]
+    #print time.ctime(cdate), size, os.path.basename(path)    
+    print "AAA", cdate, size, path
+    
+    dateRes = re.search("(?<=]_).*(?=.html.json)", path)                  
+    dt = datetime.strptime(dateRes.group(0), "%Y-%m-%d_%H_%M_%S")
+    dateStruct = datetime.strptime(dateRes.group(0).split("_")[0], "%Y-%m-%d")
+    
+    allCDates.add(dt)    
+    
+    with open(path, 'r') as f:        
+        jsonStrRead = json.load(f)
+        print "JJJ", jsonStrRead
+        for ooo in jsonStrRead:
+            print ooo
+            if ooo == "mapname":
+                pass
 
-				
-			isFound = False
-			for plJson in jsonPlayers:
-				if plJson.name == currentJsonPlayer.name:
-					isFound = True
-					plJson.frags += currentJsonPlayer.frags
-					plJson.suicides += currentJsonPlayer.suicides
-					plJson.ga += currentJsonPlayer.ga
-					plJson.ra += currentJsonPlayer.ra
-					plJson.ya += currentJsonPlayer.ya
-					plJson.mh += currentJsonPlayer.mh
-					plJson.deaths += currentJsonPlayer.deaths
-					plJson.matchesPlayed += currentJsonPlayer.matchesPlayed
-					plJson.fragsByMatches.append(currentJsonPlayer.frags)
-					plJson.fragsByMatchesPairs.append([dt, currentJsonPlayer.frags])
-					plJson.rankByMatches.append(currentJsonPlayer.frags-currentJsonPlayer.deaths)
-					plJson.rankByMatchesPairs.append([dt, currentJsonPlayer.frags-currentJsonPlayer.deaths])
-	
-			if not isFound:
-				currentJsonPlayer.fragsByMatches.append(currentJsonPlayer.frags)
-				currentJsonPlayer.fragsByMatchesPairs.append([dt, currentJsonPlayer.frags])
-				currentJsonPlayer.rankByMatches.append(currentJsonPlayer.frags-currentJsonPlayer.deaths)
-				currentJsonPlayer.rankByMatchesPairs.append([dt, currentJsonPlayer.frags-currentJsonPlayer.deaths])
-				jsonPlayers.append(currentJsonPlayer)
+            if ooo == "gamemode":
+                pass
 
-				
-				
+            if ooo == "players":
+                for oo in jsonStrRead[ooo]:
+                    currentJsonPlayer = JsonPlayer()
+                    currentJsonPlayer.matchesPlayed = 1
+                    for o in oo:
+                        print o
+                        # exec("currentJsonPlayer.%s = %s" % (o, oo[o]))
+                        if o == "name":
+                            currentJsonPlayer.name = oo[o]
+                        if o == "frags":
+                            currentJsonPlayer.frags = oo[o]
+                        if o == "suicides":
+                            currentJsonPlayer.suicides = oo[o]
+                        if o == "ga":
+                            currentJsonPlayer.ga = oo[o]
+                        if o == "ya":
+                            currentJsonPlayer.ya = oo[o]
+                        if o == "ra":
+                            currentJsonPlayer.ra = oo[o]
+                        if o == "mh":
+                            currentJsonPlayer.mh = oo[o]
+                        if o == "deaths":
+                            currentJsonPlayer.deaths = oo[o]
+                        if o == "achievements":
+                            for ach in oo[o]:
+                                if isinstance(ach,int):
+                                    achID = ach
+                                    if not achID in currentJsonPlayer.achievements:
+                                        currentJsonPlayer.achievements[achID] = 1
+                                    else:
+                                        currentJsonPlayer.achievements[achID] += 1
+                                else:
+                                    for acho in ach:
+                                        if acho == "achID":
+                                            achID = ach[acho]
+                                            if not achID in currentJsonPlayer.achievements:
+                                                currentJsonPlayer.achievements[achID] = 1
+                                            else:
+                                                currentJsonPlayer.achievements[achID] += 1
+                        if o == "rlskill":
+                            currentJsonPlayer.rlskill = oo[o]
+                        
+                    isFound = False
+                    for plJson in jsonPlayers:
+                        if plJson.name == currentJsonPlayer.name:
+                            isFound = True
+                            plJson.frags += currentJsonPlayer.frags
+                            plJson.suicides += currentJsonPlayer.suicides
+                            plJson.ga += currentJsonPlayer.ga
+                            plJson.ra += currentJsonPlayer.ra
+                            plJson.ya += currentJsonPlayer.ya
+                            plJson.mh += currentJsonPlayer.mh
+                            plJson.deaths += currentJsonPlayer.deaths
+                            plJson.matchesPlayed += currentJsonPlayer.matchesPlayed
+                            plJson.achievements = dict(Counter(plJson.achievements) + Counter(currentJsonPlayer.achievements))
+                            plJson.rlskill = dict(Counter(plJson.rlskill) + Counter(currentJsonPlayer.rlskill))
+                            
+                            plJson.fragsByMatches.append(currentJsonPlayer.frags)
+                            plJson.fragsByMatchesPairs.append([dt, currentJsonPlayer.frags])
+                            plJson.rankByMatches.append(currentJsonPlayer.frags-currentJsonPlayer.deaths)
+                            plJson.rankByMatchesPairs.append([dt, currentJsonPlayer.frags-currentJsonPlayer.deaths])
+            
+                    if not isFound:
+                        currentJsonPlayer.fragsByMatches.append(currentJsonPlayer.frags)
+                        currentJsonPlayer.fragsByMatchesPairs.append([dt, currentJsonPlayer.frags])
+                        currentJsonPlayer.rankByMatches.append(currentJsonPlayer.frags-currentJsonPlayer.deaths)
+                        currentJsonPlayer.rankByMatchesPairs.append([dt, currentJsonPlayer.frags-currentJsonPlayer.deaths])
+                        jsonPlayers.append(currentJsonPlayer)
+
+                
+                
 for pl in jsonPlayers:
-	correctedFragsByMatches = []
-	for cdate in sorted(allCDates):
-		isFound = False
-		fragsVal = -1
-		for fragsPair in pl.fragsByMatchesPairs:
-			if fragsPair[0] == cdate:
-				fragsVal =  fragsPair[1]
-				break		
-		correctedFragsByMatches.append(fragsVal)
-	pl.fragsByMatches = correctedFragsByMatches
-	
-	correctedRankByMatches = []
-	for cdate in sorted(allCDates):
-		isFound = False
-		rankVal = -10000
-		for rankPair in pl.rankByMatchesPairs:
-			if rankPair[0] == cdate:
-				rankVal =  rankPair[1]
-				break		
-		correctedRankByMatches.append(rankVal)
-	pl.rankByMatches = correctedRankByMatches
-				
+    correctedFragsByMatches = []
+    for cdate in sorted(allCDates):
+        isFound = False
+        fragsVal = -1
+        for fragsPair in pl.fragsByMatchesPairs:
+            if fragsPair[0] == cdate:
+                fragsVal =  fragsPair[1]
+                break        
+        correctedFragsByMatches.append(fragsVal)
+    pl.fragsByMatches = correctedFragsByMatches
+    
+    correctedRankByMatches = []
+    for cdate in sorted(allCDates):
+        isFound = False
+        rankVal = -10000
+        for rankPair in pl.rankByMatchesPairs:
+            if rankPair[0] == cdate:
+                rankVal =  rankPair[1]
+                break        
+        correctedRankByMatches.append(rankVal)
+    pl.rankByMatches = correctedRankByMatches
+                
 totalsStr = "===== TOTALS (%d) =====" % (len(jsonPlayers))
 totalsStr += "<hr>\n"
 for plJson in jsonPlayers:
-	totalsStr += "\t%s: matches:%d, frags:%d, deaths: %d, suicides: %d, ga: %d, ya: %d, ra: %d, mh: %d" % (plJson.name, plJson.matchesPlayed, plJson.frags, plJson.deaths, plJson.suicides, plJson.ga, plJson.ya, plJson.ra, plJson.mh)
-	totalsStr += "<br>\n"
-	totalsStr += "\tavg per match: frags:%f, deaths: %f, suicides: %f, ga: %f, ya: %f, ra: %f, mh: %f" % (float(plJson.frags)/plJson.matchesPlayed, float(plJson.deaths)/plJson.matchesPlayed, float(plJson.suicides)/plJson.matchesPlayed, float(plJson.ga)/plJson.matchesPlayed, float(plJson.ya)/plJson.matchesPlayed, float(plJson.ra)/plJson.matchesPlayed, float(plJson.mh)/plJson.matchesPlayed)
-	totalsStr += "<br>\n"
-	totalsStr += "frags by matches: %s" % (plJson.fragsByMatches)
-	totalsStr += "<hr>\n"
-				
+    totalsStr += "\t%s: matches:%d, frags:%d, deaths: %d, suicides: %d, ga: %d, ya: %d, ra: %d, mh: %d" % (plJson.name, plJson.matchesPlayed, plJson.frags, plJson.deaths, plJson.suicides, plJson.ga, plJson.ya, plJson.ra, plJson.mh)
+    
+    totalsStr += "<br>\n"
+    
+    totalsStr += "\tachievements: "
+    for achID in plJson.achievements.keys():
+        ach = ezstatslib.Achievement(achID)
+        totalsStr += "%s(%d)," % (ach.toString(), plJson.achievements[achID])
+    totalsStr = totalsStr[:-1]
+    
+    totalsStr += "<br>\n"
+    
+    totalsStr += "\tRLSkill: "
+    for rlkey in plJson.rlskill.keys():
+        totalsStr += "%s(%d)," % (rlkey, plJson.rlskill[rlkey])
+    totalsStr = totalsStr[:-1]
+    
+    totalsStr += "<br>\n"
+    
+    totalsStr += "\tavg per match: frags:%f, deaths: %f, suicides: %f, ga: %f, ya: %f, ra: %f, mh: %f" % (float(plJson.frags)/plJson.matchesPlayed, float(plJson.deaths)/plJson.matchesPlayed, float(plJson.suicides)/plJson.matchesPlayed, float(plJson.ga)/plJson.matchesPlayed, float(plJson.ya)/plJson.matchesPlayed, float(plJson.ra)/plJson.matchesPlayed, float(plJson.mh)/plJson.matchesPlayed)
+    totalsStr += "<br>\n"
+    totalsStr += "frags by matches: %s" % (plJson.fragsByMatches)
+    totalsStr += "<hr>\n"
+                
 logsf = open(totalsPath, "w")
 #logsf.write(ezstatslib.HTML_HEADER_STR)
 
@@ -3121,21 +3333,21 @@ highchartsTotalsFragsFunctionStr = highchartsTotalsFragsFunctionStr.replace("EXT
 hcDelim = "}, {\n"
 rowLines = ""        
 for plJson in jsonPlayers:
-	if rowLines != "":
-		rowLines += hcDelim
-	
-	rowLines += "name: '%s (%d)',\n" % (plJson.name, plJson.matchesPlayed)
-	# rowLines += "data: [0"
-	rowLines += "data: [[0,0]"
-	
-	graphGranularity = 1.0 / (float)(ezstatslib.HIGHCHARTS_TOTALS_FRAGS_PROGRESS_GRANULARITY)
-	for fr in plJson.fragsByMatches:
-		# rowLines += ",%d" % (minEl[pl.name])
-		if fr != -1:
-			rowLines += ",[%f,%d]" % (graphGranularity, fr)  # TODO format, now is 0.500000
-		graphGranularity += 1.0 / (float)(ezstatslib.HIGHCHARTS_TOTALS_FRAGS_PROGRESS_GRANULARITY)
-		
-	rowLines += "]\n"        
+    if rowLines != "":
+        rowLines += hcDelim
+    
+    rowLines += "name: '%s (%d)',\n" % (plJson.name, plJson.matchesPlayed)
+    # rowLines += "data: [0"
+    rowLines += "data: [[0,0]"
+    
+    graphGranularity = 1.0 / (float)(ezstatslib.HIGHCHARTS_TOTALS_FRAGS_PROGRESS_GRANULARITY)
+    for fr in plJson.fragsByMatches:
+        # rowLines += ",%d" % (minEl[pl.name])
+        if fr != -1:
+            rowLines += ",[%f,%d]" % (graphGranularity, fr)  # TODO format, now is 0.500000
+        graphGranularity += 1.0 / (float)(ezstatslib.HIGHCHARTS_TOTALS_FRAGS_PROGRESS_GRANULARITY)
+        
+    rowLines += "]\n"        
     
 highchartsTotalsFragsFunctionStr = highchartsTotalsFragsFunctionStr.replace("ADD_STAT_ROWS", rowLines)
     
@@ -3161,28 +3373,28 @@ highchartsTotalsAvgFragsFunctionStr = highchartsTotalsAvgFragsFunctionStr.replac
 hcDelim = "}, {\n"
 rowLines = ""        
 for plJson in jsonPlayers:
-	if rowLines != "":
-		rowLines += hcDelim
-	
-	rowLines += "name: '%s (%d)',\n" % (plJson.name, plJson.matchesPlayed)
-	# rowLines += "data: [0"
-	rowLines += "data: [[0,0]"
-		
-	graphGranularity = 1.0 / (float)(ezstatslib.HIGHCHARTS_TOTALS_AVG_FRAGS_PROGRESS_GRANULARITY)
-	avgFragsVal = 0.0
-	currentMatchesCnt = 0
-	currentFragsSum = 0
-	for fr in plJson.fragsByMatches:
-		# rowLines += ",%d" % (minEl[pl.name])
-		if fr != -1:
-			currentMatchesCnt += 1
-			currentFragsSum += fr
-			avgFragsVal = float(currentFragsSum) / currentMatchesCnt
-				
-			rowLines += ",[%f,%f]" % (graphGranularity, avgFragsVal)  # TODO format, now is 0.500000
-		graphGranularity += 1.0 / (float)(ezstatslib.HIGHCHARTS_TOTALS_AVG_FRAGS_PROGRESS_GRANULARITY)
-		
-	rowLines += "]\n"        
+    if rowLines != "":
+        rowLines += hcDelim
+    
+    rowLines += "name: '%s (%d)',\n" % (plJson.name, plJson.matchesPlayed)
+    # rowLines += "data: [0"
+    rowLines += "data: [[0,0]"
+        
+    graphGranularity = 1.0 / (float)(ezstatslib.HIGHCHARTS_TOTALS_AVG_FRAGS_PROGRESS_GRANULARITY)
+    avgFragsVal = 0.0
+    currentMatchesCnt = 0
+    currentFragsSum = 0
+    for fr in plJson.fragsByMatches:
+        # rowLines += ",%d" % (minEl[pl.name])
+        if fr != -1:
+            currentMatchesCnt += 1
+            currentFragsSum += fr
+            avgFragsVal = float(currentFragsSum) / currentMatchesCnt
+                
+            rowLines += ",[%f,%f]" % (graphGranularity, avgFragsVal)  # TODO format, now is 0.500000
+        graphGranularity += 1.0 / (float)(ezstatslib.HIGHCHARTS_TOTALS_AVG_FRAGS_PROGRESS_GRANULARITY)
+        
+    rowLines += "]\n"        
     
 highchartsTotalsAvgFragsFunctionStr = highchartsTotalsAvgFragsFunctionStr.replace("ADD_STAT_ROWS", rowLines)
     
@@ -3208,26 +3420,26 @@ highchartsTotalsRankFunctionStr = highchartsTotalsRankFunctionStr.replace("EXTRA
 hcDelim = "}, {\n"
 rowLines = ""        
 for plJson in jsonPlayers:
-	if rowLines != "":
-		rowLines += hcDelim
-	
-	rowLines += "name: '%s (%d)',\n" % (plJson.name, plJson.matchesPlayed)
-	# rowLines += "data: [0"
-	rowLines += "data: [[0,0]"
-		
-	graphGranularity = 1.0 / (float)(ezstatslib.HIGHCHARTS_TOTALS_RANK_PROGRESS_GRANULARITY)
-	totalRank = 0
-	for rank in plJson.rankByMatches:
-		# rowLines += ",%d" % (minEl[pl.name])
-		if rank != -10000:
-			totalRank += rank
-			rowLines += ",[%f,%d]" % (graphGranularity, totalRank)  # TODO format, now is 0.500000
-		graphGranularity += 1.0 / (float)(ezstatslib.HIGHCHARTS_TOTALS_RANK_PROGRESS_GRANULARITY)
-		
-	rowLines += "]\n"        
-	
-	# add negative zone
-	rowLines += ",zones: [{ value: 0, dashStyle: 'Dash' }]"
+    if rowLines != "":
+        rowLines += hcDelim
+    
+    rowLines += "name: '%s (%d)',\n" % (plJson.name, plJson.matchesPlayed)
+    # rowLines += "data: [0"
+    rowLines += "data: [[0,0]"
+        
+    graphGranularity = 1.0 / (float)(ezstatslib.HIGHCHARTS_TOTALS_RANK_PROGRESS_GRANULARITY)
+    totalRank = 0
+    for rank in plJson.rankByMatches:
+        # rowLines += ",%d" % (minEl[pl.name])
+        if rank != -10000:
+            totalRank += rank
+            rowLines += ",[%f,%d]" % (graphGranularity, totalRank)  # TODO format, now is 0.500000
+        graphGranularity += 1.0 / (float)(ezstatslib.HIGHCHARTS_TOTALS_RANK_PROGRESS_GRANULARITY)
+        
+    rowLines += "]\n"        
+    
+    # add negative zone
+    rowLines += ",zones: [{ value: 0, dashStyle: 'Dash' }]"
     
 highchartsTotalsRankFunctionStr = highchartsTotalsRankFunctionStr.replace("ADD_STAT_ROWS", rowLines)
     
@@ -3258,13 +3470,13 @@ logsf.write(ezstatslib.HTML_BODY_FOLDING_SCRIPT)
 logsf.write(ezstatslib.HTML_FOOTER_NO_PRE)
 
 # logsf.write(ezstatslib.HTML_FOOTER_STR)
-logsf.close()			
+logsf.close()            
 
 print "allCDates.size =", len(allCDates)
 
 for pl in jsonPlayers:
-	print "count:", len(pl.fragsByMatches)
-	
+    print "count:", len(pl.fragsByMatches)
+    
 print allCDates
 print sorted(allCDates)
 

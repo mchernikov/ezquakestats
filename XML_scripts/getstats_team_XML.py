@@ -211,6 +211,8 @@ for child in root:
                     damageCnt += 1
                     elem = DamageElement(evtype)
 
+                    if elem.target == None or elem.attacker == None:
+                        continue
 #                    print "IsSelf: %s" % (elem.isSelfDamage)
 
                     elements.append(elem)
@@ -342,35 +344,51 @@ for elem in deathElements:
 
 
 for elem in pickmapitemElements:
-    #print "%f  %s -> %s  \"%s\"  %f" % (elem.time, elem.attacker, elem.target, elem.type, elem.lifetime)
-    #print "%f" % (elem.lifetime)
+    # #print "%f  %s -> %s  \"%s\"  %f" % (elem.time, elem.attacker, elem.target, elem.type, elem.lifetime)
+    # #print "%f" % (elem.lifetime)
 
     if int(elem.time) == minutesPlayedXML*60:
         elem.time = minutesPlayedXML*60 - 1  # correction for events in the match end with timestamp more than minPlayed*60
 
     for pl in xmlPlayers:
         if pl.name == elem.player:
-            if elem.isArmor:
-                if elem.armorType == ezstatslib.PowerUpType.RA:
-                    pl.raXML += 1
-                    pl.incraXML(int(elem.time))
-                if elem.armorType == ezstatslib.PowerUpType.YA:
-                    pl.yaXML += 1
-                    pl.incyaXML(int(elem.time))
-                if elem.armorType == ezstatslib.PowerUpType.GA:
-                    pl.gaXML += 1
-                    pl.incgaXML(int(elem.time))
+            if not elem.isArmor and not elem.isMH:
+                if "item_" in elem.item:
+                    itemName = elem.item.replace("item_", "")
+                    if not itemName in pl.pickups_items.keys():
+                        pl.pickups_items[itemName] = 1
+                    else:
+                        pl.pickups_items[itemName] += 1
+                elif "weapon_" in elem.item:
+                    weaponName = elem.item.replace("weapon_", "")
+                    if not weaponName in pl.pickups_weapons.keys():
+                        pl.pickups_weapons[weaponName] = 1
+                    else:
+                        pl.pickups_weapons[weaponName] += 1
+                elif "health_15" == elem.item or "health_25" == elem.item:
+                    exec("pl.%s_cnt += 1;" % (elem.item))
+                    
+            # if elem.isArmor:
+                # if elem.armorType == ezstatslib.PowerUpType.RA:
+                    # pl.raXML += 1
+                    # pl.incraXML(int(elem.time))
+                # if elem.armorType == ezstatslib.PowerUpType.YA:
+                    # pl.yaXML += 1
+                    # pl.incyaXML(int(elem.time))
+                # if elem.armorType == ezstatslib.PowerUpType.GA:
+                    # pl.gaXML += 1
+                    # pl.incgaXML(int(elem.time))
 
-            if elem.isMH:
-                pl.mhXML += 1
-                pl.incmhXML(int(elem.time))
+            # if elem.isMH:
+                # pl.mhXML += 1
+                # pl.incmhXML(int(elem.time))
 
-for pl in xmlPlayers:
-    print "Player \"%s\": kills:  %d, deaths:  %d, suicides:  %d, spawns:  %d, ga: %d, ya: %d, ra: %d, mh: %d" % (pl.name, pl.killsXML, pl.deathsXML, pl.suicidesXML, pl.spawnFragsXML, pl.gaXML, pl.yaXML, pl.raXML, pl.mhXML)
-    print "    ga: %s" % (pl.gaByMinutesXML)
-    print "    ya: %s" % (pl.yaByMinutesXML)
-    print "    ra: %s" % (pl.raByMinutesXML)
-    print "    mh: %s" % (pl.mhByMinutesXML)    
+# for pl in xmlPlayers:
+    # print "Player \"%s\": kills:  %d, deaths:  %d, suicides:  %d, spawns:  %d, ga: %d, ya: %d, ra: %d, mh: %d" % (pl.name, pl.killsXML, pl.deathsXML, pl.suicidesXML, pl.spawnFragsXML, pl.gaXML, pl.yaXML, pl.raXML, pl.mhXML)
+    # print "    ga: %s" % (pl.gaByMinutesXML)
+    # print "    ya: %s" % (pl.yaByMinutesXML)
+    # print "    ra: %s" % (pl.raByMinutesXML)
+    # print "    mh: %s" % (pl.mhByMinutesXML)    
 
 timelimit = -1
 duration = -1
@@ -397,10 +415,13 @@ with open(options.inputFileJSON, 'r') as fjson:
         pl.initPowerUpsByMinutes(minutesPlayedXML)
         rlAttacksByPlayers[pl.name] = jsonStrRead["players"][i]["weapons"]["rl"]["acc"]["attacks"];
         
+        pl.speed_max = jsonStrRead["players"][i]["speed"]["max"];
+        pl.speed_avg = jsonStrRead["players"][i]["speed"]["avg"];
+        
         jsonPlayers.append(pl)
 
-isOverTime = minutesPlayedXML != timelimit;
-overtimeMinutes = minutesPlayedXML - timelimit    
+    isOverTime = minutesPlayedXML != timelimit;
+    overtimeMinutes = minutesPlayedXML - timelimit
         
 for pl in jsonPlayers:
     print pl.name, " - ", pl.teamname     
@@ -448,6 +469,12 @@ for pl in jsonPlayers:
             pl.lastDeathXML = plXML.lastDeathXML
             pl.firstDeathXML = plXML.firstDeathXML
             pl.connectionTimeXML = plXML.firstDeathXML.time - plXML.firstDeathXML.lifetime
+            
+            pl.health_15_cnt = plXML.health_15_cnt
+            pl.health_25_cnt = plXML.health_25_cnt
+            
+            pl.pickups_weapons = plXML.pickups_weapons
+            pl.pickups_items = plXML.pickups_items
             
             if len(rlAttacksByPlayers) != 0:
                 try:
@@ -1542,7 +1569,7 @@ resultString += "SpawnFrags: " + " [" +  ezstatslib.sortPlayersBy(allplayers,"sp
 resultString += "\n"
 # resultString += "RL skill DH:" + " [" +  ezstatslib.sortPlayersBy(allplayers, "rlskill_dh") + "]\n"
 # resultString += "RL skill AD:" + " [" +  ezstatslib.sortPlayersBy(allplayers, "rlskill_ad") + "]\n"
-resultString += "\n"
+#resultString += "\n"
 # resultString += "Weapons:\n"
 # resultString += "RL:         " + " [" +  ezstatslib.sortPlayersBy(allplayers, "w_rl", units="%") + "]\n"
 # resultString += "LG:         " + " [" +  ezstatslib.sortPlayersBy(allplayers, "w_lg", units="%") + "]\n"
@@ -1550,6 +1577,14 @@ resultString += "\n"
 # resultString += "SG:         " + " [" +  ezstatslib.sortPlayersBy(allplayers, "w_sg", units="%") + "]\n"
 # resultString += "SSG:        " + " [" +  ezstatslib.sortPlayersBy(allplayers, "w_ssg", units="%") + "]\n"
 # resultString += "\n"
+
+resultString += "Health15:   " + " [" +  ezstatslib.sortPlayersBy(allplayers,"health_15_cnt") + "]\n"
+resultString += "Health25:   " + " [" +  ezstatslib.sortPlayersBy(allplayers,"health_25_cnt") + "]\n"
+resultString += "\n"
+
+resultString += "Max speed:   " + " [" +  ezstatslib.sortPlayersBy(allplayers,"speed_max") + "]\n"
+resultString += "Avg speed:   " + " [" +  ezstatslib.sortPlayersBy(allplayers,"speed_avg") + "]\n"
+resultString += "\n"
 
 # TODO
 plNameMaxLen = 23;
@@ -1565,6 +1600,8 @@ for pl in sorted(allplayers, key=attrgetter("kills"), reverse=True):
     resultString += ("{0:%ds} self  {1:4d} :: {2:100s}\n" % (plNameMaxLen)).format("", pl.damageSelf+pl.damageSelfArmor, pl.getWeaponsDamageSelf(pl.damageSelf+pl.damageSelfArmor, weaponsCheck))
     # resultString += ("{0:%ds} avg damage :: {1:100s}\n" % (plNameMaxLen)).format("", pl.getWeaponsAccuracy(weaponsCheck))  TODO
     resultString += ("{0:%ds} rl skill   :: {1:200s}\n" % (plNameMaxLen)).format("", pl.getRLSkill())
+    resultString += ("{0:%ds} pickups    :: {1:200s}\n" % (plNameMaxLen)).format("", pl.getWeaponsPickUps())
+    resultString += ("{0:%ds} ammo       :: {1:200s}\n" % (plNameMaxLen)).format("", pl.getAmmoPickUps())
     resultString += "\n"
     resultString += "\n"
 
@@ -1709,6 +1746,9 @@ resultString += "Players damage duels:<br>"
 resultString += str( createPlayersDuelTable(team1, players1ByFrags, players2ByFrags, True) )
 resultString += "\n"
 resultString += str( createPlayersDuelTable(team2, players2ByFrags, players1ByFrags, True) )
+
+for pl in allplayersByFrags:
+    resultString += "</pre>%s_KILLS_BY_MINUTES_PLACE\n<pre>" % (ezstatslib.escapePlayerName(pl.name))    
 
 # mutual kills 
 resultString += "\nMutual kills: \n"
@@ -2485,6 +2525,115 @@ def writeHtmlWithScripts(f, teams, resStr):
         rlSkillFunctionStr = rlSkillFunctionStr.replace("ADD_ROWS", rlSkillRowsStr)
         f.write(rlSkillFunctionStr)
     # <-- highcharts RL skill
+    
+    # players kills by minutes -->
+    allPlayerKillsByMinutesStr = ""
+    maxValue = 0
+    minValue = 0
+    maxTotalValue = 0
+    minTotalValue = 0
+    for pl in allplayersByFrags:
+        plNameEscaped = ezstatslib.escapePlayerName(pl.name)
+        
+        playerKillsByMinutesStr = ezstatslib.HTML_SCRIPT_PLAYER_KILLS_BY_MINUTES_FUNCTION
+        playerKillsByMinutesStr = playerKillsByMinutesStr.replace("PLAYER_NAME", "%s_%s" % (pl.teamname, plNameEscaped))
+        
+        playerH2hElem = headToHead[pl.name]
+        
+        playerKillsByMinutesHeaderStr = "['Minute'"        
+        for el in playerH2hElem:
+            tname = ""  
+            for pll in allplayersByFrags:
+                if pll.name == el[0]:
+                    tname = pll.teamname
+            if el[0] == pl.name:
+                tname = ""
+            elif tname == pl.teamname:
+                tname = "[MATE]"
+            else:
+                tname = ""
+            playerKillsByMinutesHeaderStr += ",'%s%s'" % (el[0] if el[0] != pl.name else "suicides", tname)
+        playerKillsByMinutesHeaderStr += "],\n"
+        playerKillsByMinutesStr = playerKillsByMinutesStr.replace("ADD_HEADER_ROW", playerKillsByMinutesHeaderStr)
+        playerKillsByMinutesStr = playerKillsByMinutesStr.replace("ADD_TOTAL_HEADER_ROW", playerKillsByMinutesHeaderStr)
+        
+        playerKillsByMinutesRowsStr = ""
+        minut = 1
+        plMaxValue = 0
+        plMinValue = 0
+        while minut <= currentMinute:
+            playerKillsByMinutesRowsStr += "['%d'" % (minut)
+            stackSum = 0
+            stackNegVal = 0
+            for el in playerH2hElem:
+                tname = ""  
+                for pll in allplayersByFrags:
+                    if pll.name == el[0]:
+                        tname = pll.teamname
+                if el[0] == pl.name:
+                    tname = ""
+                elif tname == pl.teamname:
+                    tname = "[MATE]"
+                else:
+                    tname = ""
+                playerKillsByMinutesRowsStr += ",%d" % (el[2][minut] if el[0] != pl.name and tname != "[MATE]" else -el[2][minut])
+                if el[0] != pl.name and tname != "[MATE]":
+                    stackSum += el[2][minut]
+                else:
+                    stackNegVal = min(stackNegVal, -el[2][minut])
+            playerKillsByMinutesRowsStr += "],\n"
+            plMaxValue = max(plMaxValue, stackSum)
+            plMinValue = min(plMinValue, stackNegVal)
+            minut += 1
+        playerKillsByMinutesStr = playerKillsByMinutesStr.replace("ADD_STATS_ROWS", playerKillsByMinutesRowsStr)
+        
+        playerKillsTotalRowsStr = "[''"
+        for el in playerH2hElem:
+            tname = ""  
+            for pll in allplayersByFrags:
+                if pll.name == el[0]:
+                    tname = pll.teamname
+            if el[0] == pl.name:
+                tname = ""
+            elif tname == pl.teamname:
+                tname = "[MATE]"
+            else:
+                tname = ""
+            val = 0
+            if el[0] == pl.name:
+                val = -pl.suicides
+            elif tname == "[MATE]":
+                val = -el[1]
+            else:
+                val = el[1]
+        
+            playerKillsTotalRowsStr += ",%d" % (val)
+        playerKillsTotalRowsStr += "],\n"
+        playerKillsByMinutesStr = playerKillsByMinutesStr.replace("ADD_TOTAL_STATS_ROWS", playerKillsTotalRowsStr)
+        
+        playerKillsByMinutesDivTag = ezstatslib.HTML_PLAYER_KILLS_BY_MINUTES_DIV_TAG
+        playerKillsByMinutesDivTag = playerKillsByMinutesDivTag.replace("PLAYER_NAME", "%s_%s" % (pl.teamname, plNameEscaped))
+        
+        allPlayerKillsByMinutesStr += playerKillsByMinutesStr
+        
+        # add div
+        resStr = resStr.replace("%s_KILLS_BY_MINUTES_PLACE" % (plNameEscaped), playerKillsByMinutesDivTag)
+        
+        # max & min
+        maxValue = max(maxValue, plMaxValue)
+        minValue = min(minValue, plMinValue)
+        
+        # maxTotalValue = max(maxTotalValue, pl.kills)
+        maxTotalValue = max(maxTotalValue, sorted(headToHead[pl.name], key=lambda x: x[1], reverse=True)[0][1])
+        minTotalValue = min(minTotalValue, -pl.suicides)
+        
+    allPlayerKillsByMinutesStr = allPlayerKillsByMinutesStr.replace("MIN_VALUE", str(minValue))
+    allPlayerKillsByMinutesStr = allPlayerKillsByMinutesStr.replace("MAX_VALUE", str(maxValue))
+    allPlayerKillsByMinutesStr = allPlayerKillsByMinutesStr.replace("TOTAL_MIN__VALUE", str(minTotalValue))
+    allPlayerKillsByMinutesStr = allPlayerKillsByMinutesStr.replace("TOTAL_MAX__VALUE", str(maxTotalValue))
+    
+    f.write(allPlayerKillsByMinutesStr)
+    # <-- players kills by minutes
     
     
     f.write(ezstatslib.HTML_SCRIPT_SECTION_FOOTER)

@@ -37,7 +37,7 @@ possibleColors = [HtmlColor.COLOR_RED,
                   HtmlColor.COLOR_CYAN,
                   HtmlColor.COLOR_MAGENTA]
 
-CURRENT_VERSION = "1.18"
+CURRENT_VERSION = "1.21"
                   
 LOG_TIMESTAMP_DELIMITER = " <-> "
 
@@ -2555,6 +2555,15 @@ class PlayerLifetimeElement:
     def __str__(self):
         return "time: %f, health: %d, armor: %d, deathType: %d, killer: %s" % (self.time, self.health, self.armor, self.deathType, self.killer)
         
+class KillSteal:
+    def __init__(self, _time, _stealer, _target, _victim, _attackers, _confidence):
+        self.time = _time
+        self.stealer = _stealer
+        self.target = _target
+        self.stealvictim = _victim
+        self.attackers = _attackers
+        self.confidence = _confidence
+        
 class Player:
     def __init__(self, teamname, name, score, origDelta, teamkills):
         self.teamname = teamname
@@ -2736,6 +2745,20 @@ class Player:
         self.lastDeathXML = ""
         self.connectionTimeXML = 0
         
+        self.health_15_cnt = 0
+        self.health_25_cnt = 0
+        
+        self.pickups_items = {}
+        self.pickups_weapons = {}
+        
+        self.killsteals_stealer = []
+        self.killsteals_victim = []
+        
+        self.rl_dhs_selfdamage = []
+        
+        self.speed_max = 0
+        self.speed_avg = 0
+        
     def addLifetimeItem(self, element):
         if isinstance(element, DamageElement):
             if element.armor == 1:
@@ -2859,8 +2882,8 @@ class Player:
     def playTimeXML(self):
         playTime = 0
         minutesCnt = len(self.gaByMinutes)  # TODO get minutes count
-        if minutesCnt != 0:
-            lastActionTime = self.lifetime[len(self.lifetime)-1].time
+        if minutesCnt != 0 and len(self.lifetime) > 2:
+            lastActionTime = self.lifetime[len(self.lifetime)-2].time  # last lifetime element is added in correctLifetime method 
             playTime = self.lifetimeXML + (lastActionTime - self.lastDeathXML.time)
         return playTime
 
@@ -3192,6 +3215,22 @@ class Player:
         if len(resstr) > 2:
             resstr = resstr[:-2]
         return resstr
+        
+    def getWeaponsPickUps(self):
+        resstr = ""
+        for weapon in sorted(self.pickups_weapons, key=self.pickups_weapons.get, reverse=True):
+            resstr += "%s(%d), " % (weapon, self.pickups_weapons[weapon])
+        if len(resstr) > 2:
+            resstr = resstr[:-2]
+        return resstr
+        
+    def getAmmoPickUps(self):
+        resstr = ""
+        for ammo in sorted(self.pickups_items, key=self.pickups_items.get, reverse=True):
+            resstr += "%s(%d), " % (ammo, self.pickups_items[ammo])
+        if len(resstr) > 2:
+            resstr = resstr[:-2]
+        return resstr
 
     def getRLSkill(self):
         cnt = len(self.rl_damages_gvn)
@@ -3214,7 +3253,29 @@ class Player:
                                          ((float(val55))  / float(cnt) * 100), val55,
                                           cnt,
                                           "    Attacks: {0:4d}".format(self.rl_attacks) if self.rl_attacks != -1 else "")
-                
+
+    def getRLSkillJSON(self):
+        cnt = len(self.rl_damages_gvn)
+        if cnt == 0:
+            return {}
+
+        val110 = sum(1 for val in pl.rl_damages_gvn if val[0] == 110)
+        val100 = sum(1 for val in pl.rl_damages_gvn if val[0] < 110 and val[0] >= 100)
+        val90  = sum(1 for val in pl.rl_damages_gvn if val[0] < 100 and val[0] >= 90)
+        val75  = sum(1 for val in pl.rl_damages_gvn if val[0] < 90 and val[0] >= 75)
+        val55  = sum(1 for val in pl.rl_damages_gvn if val[0] < 75 and val[0] >= 55)
+        val0   = sum(1 for val in pl.rl_damages_gvn if val[0] < 55 and val[0] >= 0)
+        
+        return { "attacks"      : self.rl_attacks,
+                 "damagesCount" : cnt,
+                 "DH110"   : val110,
+                 "100-110" : val100,
+                 "90-100"  : val90,
+                 "75-90"   : val75,
+                 "55-75"   : val55,
+                 "0-55"    : val0
+               }
+                                          
     def correctDelta(self):
         self.correctedDelta = self.origDelta + self.suicides
 
@@ -3244,6 +3305,11 @@ class Player:
             res.append(ach.achtype)
         return res
         
+    def getAchievementsJSON(self):
+        res = []
+        for ach in self.achievements:
+            res.append({"achID" : ach.achtype})
+        return res        
 
     # powerUpsStatus: dict: ["ra"] = True, ["ya"] = False, etc.
     def calculateAchievements(self, matchProgress, powerUpsStatus, headToHead, isTeamGame):
@@ -3416,7 +3482,7 @@ class Player:
             self.achievements.append( Achievement(AchievementType.LUMBERJACK, "%d axe kills" % (self.axe_kills)) )
 
         # ELECTROMASTER
-        if self.lg_kills >= 20 and ((float(self.lg_kills) / float(self.kills) * 100)) >= 40.0:
+        if (self.lg_kills >= 15 and ((float(self.lg_kills) / float(self.kills) * 100)) >= 40.0) or (((float(self.lg_kills) / float(self.kills) * 100)) >= 75.0):
             self.achievements.append( Achievement(AchievementType.ELECTROMASTER, "{0:d} lazer gun kills({1:5.3}%)".format(self.lg_kills, (float(self.lg_kills) / float(self.kills) * 100))) )
 
         # FASTER_THAN_BULLET
@@ -3522,6 +3588,8 @@ AchievementType = enum( LONG_LIVE  = 1, #"Long Live and Prosper",  # the 1st 30 
                         COMBO_MUTUAL_KILL = 51,  # "Fight to the death!!" : "fought bravely until the last blood drop %d times"     3+ mutual kills   #XML_SPECIFIC                 DONE
                         COMBO_KAMIKAZE = 52,  # "Kamikaze - one way ticket!!" : "The sun on the wings - move forward! For the last time, the enemy will see the sunrise! One plane for one enemy! %d times..."  3+ suicide+kill   #XML_SPECIFIC    DONE
                         COMBO_TRIPLE_KILL = 53,  # "Three enemies with a single shot" : "killed %s, %s and %s with one %s shot!"   #three kills with on shot  #XML_SPECIFIC    DONE
+                        KILLSTEAL_STEALER = 54,  # "King of theft" : "stole %d kills" # maximum kill steals - stealer                                           #DEATHMATCH_SPECIFIC   DONE
+                        KILLSTEAL_VICTIM = 55,   # "Too unlucky and carefree..." : "honestly earned kills were stolen %d times" # maximum kill steals - victim  #DEATHMATCH_SPECIFIC   DONE
                         
                                             )
 
@@ -3659,7 +3727,11 @@ class Achievement:
         if self.achtype == AchievementType.COMBO_KAMIKAZE:
             return "Kamikaze - one way ticket!!"
         if self.achtype == AchievementType.COMBO_TRIPLE_KILL:
-            return "Three enemies with a single shot"            
+            return "Three enemies with a single shot"
+        if self.achtype == AchievementType.KILLSTEAL_STEALER:
+            return "King of theft"
+        if self.achtype == AchievementType.KILLSTEAL_VICTIM:
+            return "Too unlucky and carefree..."
 
     # AchievementLevel = enum(UNKNOWN=0, BASIC_POSITIVE=1, BASIC_NEGATIVE=2, ADVANCE_POSITIVE=3, ADVANCE_NEGATIVE=5, RARE_POSITIVE=6, RARE_NEGATIVE=7, ULTRA_RARE=8)
     def level(self):
@@ -3691,12 +3763,14 @@ class Achievement:
            self.achtype == AchievementType.NO_SUICIDES        or \
            self.achtype == AchievementType.CHILD_LOVER        or \
            self.achtype == AchievementType.GL_LOVER           or \
-           self.achtype == AchievementType.COMBO_KAMIKAZE:
+           self.achtype == AchievementType.COMBO_KAMIKAZE     or \
+           self.achtype == AchievementType.KILLSTEAL_STEALER:
             return AchievementLevel.ADVANCE_POSITIVE            
             
         if self.achtype == AchievementType.SUICIDE_KING    or \
            self.achtype == AchievementType.ALWAYS_THE_LAST or \
-           self.achtype == AchievementType.SELF_DESTRUCTOR:
+           self.achtype == AchievementType.SELF_DESTRUCTOR or \
+           self.achtype == AchievementType.KILLSTEAL_VICTIM:
             return AchievementLevel.ADVANCE_NEGATIVE            
                
         if self.achtype == AchievementType.GREAT_FINISH           or \
@@ -3899,6 +3973,10 @@ class Achievement:
             return path + "ach_always_the_first.jpg"
         if self.achtype == AchievementType.COMBO_TRIPLE_KILL:
             return path + "ach_combo_triple_kill.png"
+        if self.achtype == AchievementType.KILLSTEAL_STEALER:
+            return path + "ach_killsteal_stealer.png"
+        if self.achtype == AchievementType.KILLSTEAL_VICTIM:
+            return path + "ach_killsteal_victim.png"
 
         # temp images
         if self.achtype == AchievementType.HUNDRED_KILLS:
@@ -4032,7 +4110,23 @@ def calculateCommonAchievements(allplayers, headToHead, minutesPlayed, isTeamGam
                                 
                     if isNoTeamDamage:
                         pl.achievements.append( Achievement(AchievementType.LIKE_AN_ANGEL) )
-
+                        
+    # KILLSTEAL_STEALER
+    # KILLSTEAL_STEALER
+    if not isTeamGame:
+        maxStealsStealer = -1
+        maxStealsVictim  = -1
+        for pl in allplayers:
+            if len(pl.killsteals_stealer) >= maxStealsStealer:
+                maxStealsStealer = len(pl.killsteals_stealer)
+            if len(pl.killsteals_victim) >= maxStealsVictim:
+                maxStealsVictim = len(pl.killsteals_victim)
+        
+        for pl in allplayers:
+            if maxStealsStealer >= 3 and len(pl.killsteals_stealer) == maxStealsStealer:
+                pl.achievements.append( Achievement(AchievementType.KILLSTEAL_STEALER, "stole %d kills" % (len(pl.killsteals_stealer))) )
+            if maxStealsVictim >= 3 and len(pl.killsteals_victim) == maxStealsVictim:
+                pl.achievements.append( Achievement(AchievementType.KILLSTEAL_VICTIM, "honestly earned kills were stolen %d times" % (len(pl.killsteals_victim))) )
                 
 class Team:
     def __init__(self, teamname):
@@ -4259,7 +4353,7 @@ class DeathElement:
     def toString(self):
         return "DeathElement: time=%f, attacker=%s, target=%s, type=%s, armorleft=%d, lifetime=%f, isSuicide=%d, isSpawnFrag=%d\n" % (self.time,self.attacker,self.target,self.type,self.armorleft,self.lifetime,self.isSuicide,self.isSpawnFrag)
 
-        #<pick_mapitem>
+#<pick_mapitem>
 #        <time>15.715332</time>
 #        <item>item_armor1</item>
 #        <player>Sasha</player>
@@ -4273,11 +4367,16 @@ class DeathElement:
 #    <item>item_armor1</item>     <-- GA
 #    <item>item_armor2</item>     <-- YA
 #    <item>item_armorInv</item>   <-- RA
+
 #    <item>item_cells</item>
 #    <item>item_rockets</item>
+#    <item>item_spikes</item>
+
 #    <item>weapon_grenadelauncher</item>
 #    <item>weapon_lightning</item>
 #    <item>weapon_rocketlauncher</item>
+#    <item>weapon_supernailgun</item>
+#    <item>weapon_supershotgun</item>                                
 
 
 class PickMapItemElement:
