@@ -37,7 +37,7 @@ possibleColors = [HtmlColor.COLOR_RED,
                   HtmlColor.COLOR_CYAN,
                   HtmlColor.COLOR_MAGENTA]
 
-CURRENT_VERSION = "1.21"
+CURRENT_VERSION = "1.23"
                   
 LOG_TIMESTAMP_DELIMITER = " <-> "
 
@@ -2759,6 +2759,13 @@ class Player:
         self.speed_max = 0
         self.speed_avg = 0
         
+        self.duels = {}
+        
+        self.killsByMinutes = []
+        self.deathsByMinutes = []
+        self.suicidesByMinutes = []
+
+        
     def addLifetimeItem(self, element):
         if isinstance(element, DamageElement):
             if element.armor == 1:
@@ -2820,6 +2827,10 @@ class Player:
         self.raByMinutesXML = [0 for i in xrange(minutesCnt+1)]
         self.mhByMinutesXML = [0 for i in xrange(minutesCnt+1)]
         
+    def initEventsByMinutes(self, minutesCnt):
+        self.killsByMinutes    = [0 for i in xrange(minutesCnt+1)]
+        self.deathsByMinutes   = [0 for i in xrange(minutesCnt+1)]
+        self.suicidesByMinutes = [0 for i in xrange(minutesCnt+1)]
         
     def incga(self, minuteNum, time = 0):
         self.gaByMinutes[minuteNum] += 1
@@ -2933,6 +2944,11 @@ class Player:
 
         if self.currentStreak.start == 0: self.currentStreak.start = time
         self.fillDeathStreaks(time)
+        
+        currentMin = int(time / 60)+1
+        if currentMin >= len(self.killsByMinutes):
+            currentMin = len(self.killsByMinutes)-1
+        self.killsByMinutes[currentMin] += 1
 
     def incDeath(self, time, who, whom):
         self.deaths += 1
@@ -2948,6 +2964,11 @@ class Player:
         self.lifetime.append( PlayerLifetimeElement(time + 0.0001,100,0) )
         self.currentHealth = 100
         self.currentArmor = 0
+        
+        currentMin = int(time / 60)+1
+        if currentMin >= len(self.killsByMinutes):
+            currentMin = len(self.killsByMinutes)-1
+        self.deathsByMinutes[currentMin] += 1
 
     def incSuicides(self, time):
         self.suicides += 1
@@ -2963,6 +2984,11 @@ class Player:
         self.lifetime.append( PlayerLifetimeElement(time + 0.0001,100,0) )
         self.currentHealth = 100
         self.currentArmor = 0
+        
+        currentMin = int(time / 60)+1
+        if currentMin >= len(self.killsByMinutes):
+            currentMin = len(self.killsByMinutes)-1
+        self.suicidesByMinutes[currentMin] += 1
 
     def incTeamkill(self, time, who, whom):
         self.teamkills += 1
@@ -3259,12 +3285,12 @@ class Player:
         if cnt == 0:
             return {}
 
-        val110 = sum(1 for val in pl.rl_damages_gvn if val[0] == 110)
-        val100 = sum(1 for val in pl.rl_damages_gvn if val[0] < 110 and val[0] >= 100)
-        val90  = sum(1 for val in pl.rl_damages_gvn if val[0] < 100 and val[0] >= 90)
-        val75  = sum(1 for val in pl.rl_damages_gvn if val[0] < 90 and val[0] >= 75)
-        val55  = sum(1 for val in pl.rl_damages_gvn if val[0] < 75 and val[0] >= 55)
-        val0   = sum(1 for val in pl.rl_damages_gvn if val[0] < 55 and val[0] >= 0)
+        val110 = sum(1 for val in self.rl_damages_gvn if val[0] == 110)
+        val100 = sum(1 for val in self.rl_damages_gvn if val[0] < 110 and val[0] >= 100)
+        val90  = sum(1 for val in self.rl_damages_gvn if val[0] < 100 and val[0] >= 90)
+        val75  = sum(1 for val in self.rl_damages_gvn if val[0] < 90 and val[0] >= 75)
+        val55  = sum(1 for val in self.rl_damages_gvn if val[0] < 75 and val[0] >= 55)
+        val0   = sum(1 for val in self.rl_damages_gvn if val[0] < 55 and val[0] >= 0)
         
         return { "attacks"      : self.rl_attacks,
                  "damagesCount" : cnt,
@@ -3275,7 +3301,43 @@ class Player:
                  "55-75"   : val55,
                  "0-55"    : val0
                }
-                                          
+                
+    def getDuelsJson(self):
+        return self.duels
+
+    def getStreaksJSON(self, streakType):
+        res = []
+        for strk in self.deathStreaks if streakType == StreakType.DEATH_STREAK else self.calculatedStreaks:
+            res.append(
+                { "count" : strk.count,
+                  "duration" : strk.duration()
+                })
+        return res
+        
+    def getKillStreaksJSON(self):
+        return self.getStreaksJSON(StreakType.KILL_STREAK)
+        
+    def getDeathStreaksJSON(self):
+        return self.getStreaksJSON(StreakType.DEATH_STREAK)
+
+    def getKillStealsDuelsJSON(self):
+        res = {}
+        for ksteal in self.killsteals_stealer:
+            if self.name == ksteal.stealer:
+                if ksteal.stealvictim in res.keys():
+                    res[ksteal.stealvictim][0] += 1
+                else:
+                    res[ksteal.stealvictim] = [1,0]
+
+        for ksteal in self.killsteals_victim:
+            if self.name == ksteal.stealvictim:
+                if ksteal.stealer in res.keys():
+                    res[ksteal.stealer][1] += 1
+                else:
+                    res[ksteal.stealer] = [0,1]
+
+        return res
+        
     def correctDelta(self):
         self.correctedDelta = self.origDelta + self.suicides
 
@@ -3618,12 +3680,34 @@ class Achievement:
                
     @staticmethod
     def generateHtmlExCnt(ach, extraInfo, count, path = "ezquakestats/img/", size = 125, radius = 45, shadowSize = 8, shadowIntensity = 35):
-        return "<div style=\"position: relative;\">" \
+        res = "<div style=\"position: relative;\">" \
                "<img src=\"%s\" alt=\"%s\" title=\"%s: \n%s\" style=\"width:%dpx;height:%dpx;border: 8px solid %s; -webkit-border-radius: %d%%; -moz-border-radius: %d%%; border-radius: %d%%;box-shadow: 0px 0px %dpx %dpx rgba(0,0,0,0.%d);\">" \
-               "<img style=\"background-color:%s;position: absolute; top: 0; right: 0;width:37px;height:37px;border: 0px solid black;-webkit-border-radius: 55%%; -moz-border-radius: 55%%; border-radius: 55%%;box-shadow: 0px 0px 6px 6px rgba(0,0,0,0.25);\" src=\"ezquakestats\\img\\nums\\num%d.png\" alt=\"\" >" \
-               "</div>" \
-               % (ach.getImgSrc(path), ach.description(), ach.description(), extraInfo, size, size, Achievement.getBorderColor(ach.achlevel), radius, radius, radius, shadowSize, shadowSize, shadowIntensity, \
-                  Achievement.getBorderColor(ach.achlevel), count)
+               % (ach.getImgSrc(path), ach.description(), ach.description(), extraInfo, size, size, Achievement.getBorderColor(ach.achlevel), radius, radius, radius, shadowSize, shadowSize, shadowIntensity)
+    
+        if count >= 0 and count < 10:
+            res += "<img style=\"background-color:%s;position: absolute; top: 0; right: 0;width:37px;height:37px;border: 0px solid black;-webkit-border-radius: 55%%; -moz-border-radius: 55%%;" \
+                   "border-radius:    55%%;box-shadow: 0px 0px 6px 6px rgba(0,0,0,0.25);\" src=\"%s\\nums\\num%d.png\" alt=\"\" >" \
+                   % (Achievement.getBorderColor(ach.achlevel), path, count)
+        elif count >= 10 and count < 100:
+            res += "<div>" \
+                   "<img style=\"background-color:%s;position: absolute; top: 0; right: 0;width:57px;height:37px;border: 0px solid black;-webkit-border-radius: 55%%;" \
+                   "-moz-border-radius: 55%%; border-radius: 55%%;box-shadow: 0px 0px 6px 6px rgba(0,0,0,0.25);\" src=\"\" alt=\"\" >" \
+                   "<img style=\"position: absolute; top: 3px; right: 24px;width:27px;height:33px;\" src=\"%s\\nums\\num%d.png\" alt=\"\" >" \
+                   "<img style=\"position: absolute; top: 3px; right: 5px;width:27px;height:33px;\" src=\"%s\\nums\\num%d.png\" alt=\"\" >" \
+                   "</div>" \
+                   % (Achievement.getBorderColor(ach.achlevel), path, count / 10, path, count % 10)
+        elif count >= 100 and count < 1000:
+            res += "<div>" \
+                   "<img style=\"background-color:%s;position: absolute; top: 0; right: 0;width:57px;height:37px;border: 0px solid black;-webkit-border-radius: 55%%;" \
+                   "-moz-border-radius: 55%%; border-radius: 55%%;box-shadow: 0px 0px 6px 6px rgba(0,0,0,0.25);\" src=\"\" alt=\"\" >" \
+                   "<img style=\"position: absolute; top: 6px; right: 35px;width:22px;height:28px;\" src=\"%s\\nums\\num%d.png\" alt=\"\" >" \
+                   "<img style=\"position: absolute; top: 6px; right: 20px;width:22px;height:28px;\" src=\"%s\\nums\\num%d.png\" alt=\"\" >" \
+                   "<img style=\"position: absolute; top: 6px; right: 3px;width:22px;height:28px;\" src=\"%s\\nums\\num%d.png\" alt=\"\" >" \
+                   "</div>" \
+                   % (Achievement.getBorderColor(ach.achlevel), path, count / 100, path, (count % 100) / 10, path, (count % 100) % 10)
+        
+        res += "</div>"
+        return res
     
     def description(self):
         if self.achtype == AchievementType.LONG_LIVE:
