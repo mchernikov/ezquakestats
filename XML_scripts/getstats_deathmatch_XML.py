@@ -13,6 +13,7 @@ import fileinput
 import os.path
 
 import stat_conf
+import copy
 
 stat_conf.read_config()
 
@@ -213,7 +214,7 @@ for child in root:
                     elements.append(elem)
                     damageElements.append(elem)
                     if elem.target not in xmlPlayersStr:
-                        xmlPlayersStr.append(elem.target)                        
+                        xmlPlayersStr.append(elem.target)
                         pl = Player( "", elem.target, 0, 0, 0 )  #def __init__(self, teamname, name, score, origDelta, teamkills):
                         xmlPlayers.append(pl)
 
@@ -415,6 +416,11 @@ if not options.inputFileJSON is None and options.inputFileJSON != "":
 for pl in xmlPlayers:
     if pl.name == "world":
         continue
+        
+    # exclude players with no kills and no deaths
+    if pl.killsXML == 0 and pl.deathsXML == 0 and pl.suicidesXML == 0:
+        continue
+        
     pl.initPowerUpsByMinutes(minutesPlayedXML)
     pl.initEventsByMinutes(minutesPlayedXML)
     pl.ga = pl.gaXML
@@ -690,6 +696,15 @@ for element in elements:
                 if pl.name == whom:
                     exec("pl.%s_damage_tkn += %d" % (weap, value))
                     exec("pl.%s_damage_tkn_cnt += 1" % (weap))
+                    if weap == "rl":
+                        if len(pl.rl_damages_tkn) > 0 and pl.rl_damages_tkn[len(pl.rl_damages_tkn)-1][2] == 1: # armor 
+                            if pl.rl_damages_tkn[len(pl.rl_damages_tkn)-1][1] == who: # the same whom
+                                pl.rl_damages_tkn[len(pl.rl_damages_tkn)-1][0] += value
+                                pl.rl_damages_tkn[len(pl.rl_damages_tkn)-1][2] = 0
+                            else:
+                                pl.rl_damages_tkn.append([value,who,element.armor]);
+                        else:
+                            pl.rl_damages_tkn.append([value,who,element.armor]);
                     isFoundWhom = True
                     
                     pl.addLifetimeItem(element)
@@ -1303,7 +1318,11 @@ resultString += "map: " + mapName + "\n"
 resultString += "\n"
 
 for pl in allplayersByFrags:
-    resultString += ("{0:%ds} {1:3d}    ({2:s})\n" % (plNameMaxLen)).format(pl.name, pl.calcDelta(), pl.getFormatedStats_noTeamKills())
+    plLine = htmlLink(ezstatslib.escapePlayerName(pl.name) + ".html", linkText=ezstatslib.htmlBold(pl.name), isBreak=False)
+    plLine += ("{0:%ds}" % (plNameMaxLen + 5 - len(pl.name))).format(" ")
+    #plLine += ("{0:%ds} {1:3d}    ({2:s})\n" % (plNameMaxLen)).format("NAME", pl.calcDelta(), pl.getFormatedStats_noTeamKills())
+    plLine += ("{0:3d}    ({1:s})\n").format(pl.calcDelta(), pl.getFormatedStats_noTeamKills())
+    resultString += plLine
 
 # if options.withScripts:
 #     resultString += "</pre>MAIN_STATS_PLACE\n<pre>"
@@ -1368,7 +1387,8 @@ for pl in allplayersByFrags:
     resultString += ("{0:%ds} taken {1:4d} :: {2:100s}\n" % (plNameMaxLen)).format("", pl.damageTkn+pl.damageTknArmor, pl.getWeaponsDamageTkn(pl.damageTkn+pl.damageTknArmor, weaponsCheck))
     resultString += ("{0:%ds} self  {1:4d} :: {2:100s}\n" % (plNameMaxLen)).format("", pl.damageSelf+pl.damageSelfArmor, pl.getWeaponsDamageSelf(pl.damageSelf+pl.damageSelfArmor, weaponsCheck))
     # resultString += ("{0:%ds} avg damage :: {1:100s}\n" % (plNameMaxLen)).format("", pl.getWeaponsAccuracy(weaponsCheck))  TODO
-    resultString += ("{0:%ds} rl skill   :: {1:200s}\n" % (plNameMaxLen)).format("", pl.getRLSkill())
+    resultString += ("{0:%ds} rl gvn     :: {1:200s}\n" % (plNameMaxLen)).format("", pl.getRLSkillGvn())
+    resultString += ("{0:%ds} rl tkn     :: {1:200s}\n" % (plNameMaxLen)).format("", pl.getRLSkillTkn())
     resultString += ("{0:%ds} pickups    :: {1:200s}\n" % (plNameMaxLen)).format("", pl.getWeaponsPickUps())
     resultString += ("{0:%ds} ammo       :: {1:200s}\n" % (plNameMaxLen)).format("", pl.getAmmoPickUps())
     resultString += "\n"
@@ -1467,7 +1487,7 @@ htmlTable = HTML.Table(header_row=headerRow, border="2", cellspacing="3", col_al
                        style="font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 12pt;")
 
 for pl in allplayersByFrags:
-    tableRow = HTML.TableRow(cells=[ezstatslib.htmlBold(pl.name),
+    tableRow = HTML.TableRow(cells=[htmlLink(ezstatslib.escapePlayerName(pl.name) + ".html", linkText=ezstatslib.htmlBold(pl.name)),
                                     ezstatslib.htmlBold(pl.frags()),
                                     ezstatslib.htmlBold(pl.kills),
                                     ezstatslib.htmlBold(pl.deaths)])
@@ -1578,8 +1598,8 @@ for pl in allplayersByFrags:
     tableRow = HTML.TableRow(cells=[ezstatslib.htmlBold(pl.name),
                                     ezstatslib.htmlBold(pl.kills),
                                     ezstatslib.htmlBold(pl.deaths),
-                                    ezstatslib.htmlBold(pl.gvn / pl.kills),
-                                    ezstatslib.htmlBold(pl.tkn / pl.deaths)])
+                                    ezstatslib.htmlBold(pl.gvn / pl.kills if pl.kills != 0 else 0),
+                                    ezstatslib.htmlBold(pl.tkn / pl.deaths if pl.deaths != 0 else 0)])
         
     for plName in playersNames:
         if pl.name == plName:
@@ -2523,7 +2543,8 @@ def writeHtmlWithScripts(f, sortedPlayers, resStr):
     
     for pl in sortedPlayers:
         if len(pl.achievements) != 0:
-            tableRow = HTML.TableRow(cells=[ HTML.TableCell(ezstatslib.htmlBold(pl.name), align="center", width=cellWidth) ])  # TODO player name cell width
+            tableRow = HTML.TableRow(cells=[ HTML.TableCell(htmlLink(ezstatslib.escapePlayerName(pl.name) + ".html", linkText=ezstatslib.htmlBold(pl.name), isBreak=False),
+                                                            align="center", width=cellWidth) ])  # TODO player name cell width
             achIds = pl.getAchievementsIds()
             i = 0
             while i < len(pl.achievements):
@@ -3098,6 +3119,8 @@ logsf.write(htmlLink(ezstatslib.TEAM_LOGS_INDEX_FILE_NAME, linkText = "Team matc
 logsf.write("<hr>")
 logsf.write(htmlLink(ezstatslib.TOTALS_FILE_NAME, linkText = "Totals"))
 logsf.write("<hr>")
+logsf.write(htmlLink(ezstatslib.ALLPLAYERS_FILE_NAME, linkText = "All players page", gifPath=newGifTag))
+logsf.write("<hr>")
 logsf.write(str(filesTable))
 
 logsf.write("<hr>")
@@ -3414,7 +3437,7 @@ for cdate, size, path in sorted(entries, reverse=False):
                         if o == "killStealsDuels":
                             currentJsonPlayer.killStealsDuels = oo[o]
                             currentJsonMatch.killStealsDuels = oo[o]                            
-
+                            
                     isFound = False
                     for plJson in jsonPlayers:
                         if plJson.name == currentJsonPlayer.name:
@@ -3445,7 +3468,9 @@ for cdate, size, path in sorted(entries, reverse=False):
                             
                             for currKey in currentJsonPlayer.duels.keys():
                                 if not currKey in plJson.duels.keys():
-                                    plJson.duels[currKey] = currentJsonPlayer.duels[currKey]
+                                    plJson.duels[currKey] = [0,0]
+                                    plJson.duels[currKey][0] = currentJsonPlayer.duels[currKey][0]
+                                    plJson.duels[currKey][1] = currentJsonPlayer.duels[currKey][1]
                                 else:
                                     plJson.duels[currKey][0] += currentJsonPlayer.duels[currKey][0]
                                     plJson.duels[currKey][1] += currentJsonPlayer.duels[currKey][1]
@@ -3460,16 +3485,18 @@ for cdate, size, path in sorted(entries, reverse=False):
                             plJson.matches[dt] = currentJsonMatch
             
                     if not isFound:
-                        currentJsonPlayer.fragsByMatches.append(currentJsonPlayer.frags)
-                        currentJsonPlayer.fragsByMatchesPairs.append([dt, currentJsonPlayer.frags])
-                        currentJsonPlayer.rankByMatches.append(currentJsonPlayer.frags-currentJsonPlayer.deaths)
-                        currentJsonPlayer.rankByMatchesPairs.append([dt, currentJsonPlayer.frags-currentJsonPlayer.deaths])
+                        newJsonPlayer = copy.deepcopy(currentJsonPlayer)
                         
-                        currentJsonPlayer.resultPlacesByMatches[dt] = currentJsonPlayer.resultPlace
+                        newJsonPlayer.fragsByMatches.append(newJsonPlayer.frags)
+                        newJsonPlayer.fragsByMatchesPairs.append([dt, newJsonPlayer.frags])
+                        newJsonPlayer.rankByMatches.append(newJsonPlayer.frags-newJsonPlayer.deaths)
+                        newJsonPlayer.rankByMatchesPairs.append([dt, newJsonPlayer.frags-newJsonPlayer.deaths])
                         
-                        currentJsonPlayer.matches[dt] = currentJsonMatch
+                        newJsonPlayer.resultPlacesByMatches[dt] = newJsonPlayer.resultPlace
                         
-                        jsonPlayers.append(currentJsonPlayer)
+                        newJsonPlayer.matches[dt] = currentJsonMatch
+                        
+                        jsonPlayers.append(newJsonPlayer)
 
                 
                 
@@ -3691,24 +3718,62 @@ logsf.close()
 
 
 
-
-
+def addTableColumn(htmlTable, columnNum, duels):
+    for trow in htmlTable.rows:
+        #plName = trow.cells[0].replace("<b>","").replace("</b>","")
+        plNameRe = re.search("(?<=<b>).*(?=</b>)", trow.cells[0])
+        plName = plNameRe.group(0)
+        
+        
+        if not plName in duels.keys():
+            continue
+        
+        kills  = duels[plName][0]
+        deaths = duels[plName][1]
+        
+        cellVal = "%s / %s" % (ezstatslib.htmlBold(kills)  if kills  > deaths else str(kills),
+                               ezstatslib.htmlBold(deaths) if deaths > kills  else str(deaths))
+             
+        cellColor = ""
+        if kills == deaths:
+            cellColor = ezstatslib.BG_COLOR_LIGHT_GRAY
+        elif kills > deaths:
+            cellColor = ezstatslib.BG_COLOR_GREEN
+        else:
+            cellColor = ezstatslib.BG_COLOR_RED
+         
+        trow.cells[columnNum].text = cellVal
+        trow.cells[columnNum].bgcolor = cellColor
+        
+currentDatetime = datetime.now()
 # PLAYERS PAGES
 for plJson in jsonPlayers:
-    playerPagePath = ezstatslib.REPORTS_FOLDER + plJson.name + ".html"
+    playerPagePath = ezstatslib.REPORTS_FOLDER + ezstatslib.escapePlayerName(plJson.name) + ".html"
 
-    playerText = "<h1>===== %s =====</h1>" % (plJson.name)
-    playerText += "\t%s: matches:%d [%d], frags:%d, deaths: %d, suicides: %d, ga: %d, ya: %d, ra: %d, mh: %d" % (plJson.name, plJson.matchesPlayed, len(plJson.matches), plJson.frags, plJson.deaths, plJson.suicides, plJson.ga, plJson.ya, plJson.ra, plJson.mh)
+    playerText = ""
     
-    playerText += "<hr>"
+    playerText += "<table style=\"width: 100%\">"
+    playerText += "<tr>"
+    playerText += "<td>"
+    playerText += "<p style=\"text-align:left;font-size: 4\"> %s </p>" % (htmlLink(ezstatslib.ALLPLAYERS_FILE_NAME, linkText = "<-- All Players page", isBreak=False))
+    playerText += "</td>"
+    playerText += "<td>"
+    playerText += "<i><p style=\"text-align:right;font-size: 4\">Last update: %s</p></i>" % ( str(currentDatetime))
+    playerText += "</td>"
+    playerText += "</tr>"
+    playerText += "</table>"
     
-    playerText += "\tachievements: "
-    for achID in plJson.achievements.keys():
-        ach = ezstatslib.Achievement(achID)
-        playerText += "%s(%d)," % (ach.toString(), plJson.achievements[achID])
-    playerText = playerText[:-1]
+    playerText += "<h1><p style=\"text-align:center;\"> ===== %s =====</p></h1>" % (plJson.name)
+    playerText += "\tmatches:%d [%d], frags:%d, deaths: %d, suicides: %d, ga: %d, ya: %d, ra: %d, mh: %d" % (plJson.matchesPlayed, len(plJson.matches), plJson.frags, plJson.deaths, plJson.suicides, plJson.ga, plJson.ya, plJson.ra, plJson.mh)
     
     playerText += "<br>\n"
+    
+    # playerText += "\tachievements: "
+    # for achID in plJson.achievements.keys():
+        # ach = ezstatslib.Achievement(achID)
+        # playerText += "%s(%d)," % (ach.toString(), plJson.achievements[achID])
+    # playerText = playerText[:-1]    
+    # playerText += "<br>\n"
     
     playerText += "\tRLSkill: "
     for rlkey in plJson.rlskill.keys():
@@ -3740,12 +3805,65 @@ for plJson in jsonPlayers:
         
     #playerText += "\tfrags by matches: %s" % (plJson.fragsByMatches)
     #playerText += "<br>\n"
-    playerText += "\tduels: %s" % (plJson.duels)
-    playerText += "<br>\n"
+    # playerText += "\tduels: %s" % (plJson.duels)
+    # playerText += "<br>\n"
+        
+    headerRow=['Name', 'Last match', 'Last 5 matches', 'Last 10 matches', 'Total']
+    colAlign=[]
+    for i in xrange(len(headerRow)):
+        colAlign.append("center")
+
+    htmlTable = HTML.Table(header_row=headerRow, border="1", cellspacing="3", col_align=colAlign,
+                       style="font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 12pt; border-collapse: collapse; border: 4px solid black")
+                       
+    totalNum = len(plJson.duels.keys())
+    for duelKey in plJson.duels.keys():
+        if duelKey == plJson.name:
+            continue
+    
+        tableRow = HTML.TableRow(cells=[ htmlLink(ezstatslib.escapePlayerName(duelKey) + ".html", linkText=ezstatslib.htmlBold(duelKey), isBreak=False) ], style="border:4px solid black")
+        #tableRow = HTML.TableRow(cells=[ duelKey ], style="border:4px solid black")
+        for i in xrange(len(headerRow)-1):
+            tableRow.cells.append( HTML.TableCell("") )
+        htmlTable.rows.append(tableRow)        
+        
+    sortedDTs = sorted(plJson.matches.keys(), reverse=True)
+    lastDuels = plJson.matches[ sortedDTs[0] ].duels          
+    
+    addTableColumn(htmlTable, 1, lastDuels)
+    matchNum = 1
+    
+    while matchNum <= 5 and matchNum < len(sortedDTs):
+        for currKey in plJson.matches[ sortedDTs[matchNum] ].duels:
+            if not currKey in lastDuels.keys():
+                lastDuels[currKey] = plJson.matches[ sortedDTs[matchNum] ].duels[currKey]
+            else:
+                lastDuels[currKey][0] += plJson.matches[ sortedDTs[matchNum] ].duels[currKey][0]
+                lastDuels[currKey][1] += plJson.matches[ sortedDTs[matchNum] ].duels[currKey][1]
+        matchNum += 1
+                
+    addTableColumn(htmlTable, 2, lastDuels)
+    
+    while matchNum <= 10 and matchNum < len(sortedDTs):
+        for currKey in plJson.matches[ sortedDTs[matchNum] ].duels:
+            if not currKey in lastDuels.keys():
+                lastDuels[currKey] = plJson.matches[ sortedDTs[matchNum] ].duels[currKey]
+            else:
+                lastDuels[currKey][0] += plJson.matches[ sortedDTs[matchNum] ].duels[currKey][0]
+                lastDuels[currKey][1] += plJson.matches[ sortedDTs[matchNum] ].duels[currKey][1]
+        matchNum += 1        
+    addTableColumn(htmlTable, 3, lastDuels)
+    
+    addTableColumn(htmlTable, 4, plJson.duels)
+
+    playerText += str(htmlTable)
+    
+    playerText += "<br>"
+    
     playerText += "\tkillStealDuels: %s" % (plJson.killStealsDuels)
     playerText += "<hr>\n"
     
-    playerText += "Sorted matches:\n"
+    playerText += "Sorted matches (%d):\n" % (plJson.matchesPlayed)
     for dt in sorted(plJson.matches.keys(), reverse=True):
         playerText += "\tdt: %s, map: %s, place: %d, report: %s\n" %  \
                            ( str(dt), \
@@ -3822,6 +3940,102 @@ for plJson in jsonPlayers:
     playerPage.write(ezstatslib.HTML_FOOTER_NO_PRE)
 
 
+    
+    
+def getRankTableRow(parameterName, parameterDescription, players):
+    valPairs = []
+    
+    for pl in players:
+        if pl.matchesPlayed >= 5:
+            exec("valPairs.append([pl.name, float(pl.%s)/pl.matchesPlayed])" % (parameterName))
+            
+    valRow = ezstatslib.HTML_SCRIPT_ALL_PLAYERS_RATING_TABLE_ROW.replace("PARAMETERNAME", parameterName)
+    valRow = valRow.replace("PARAMETERDESCRIPTION", parameterDescription)
+
+    valPairsSorted = sorted(valPairs, key=lambda x: x[1], reverse=True)
+
+    valRow = valRow.replace("GOLD_PLAYER_NAME",   htmlLink(ezstatslib.escapePlayerName(valPairsSorted[0][0]) + ".html", \
+                                                          linkText=ezstatslib.htmlBold("%s (%.2f)" % (valPairsSorted[0][0], valPairsSorted[0][1])), isBreak=False))
+    valRow = valRow.replace("SILVER_PLAYER_NAME", htmlLink(ezstatslib.escapePlayerName(valPairsSorted[1][0]) + ".html", \
+                                                           linkText=ezstatslib.htmlBold("%s (%.2f)" % (valPairsSorted[1][0], valPairsSorted[1][1])), isBreak=False))
+    valRow = valRow.replace("BRONZE_PLAYER_NAME", htmlLink(ezstatslib.escapePlayerName(valPairsSorted[2][0]) + ".html", \
+                                                           linkText=ezstatslib.htmlBold("%s (%.2f)" % (valPairsSorted[2][0], valPairsSorted[2][1])), isBreak=False))
+
+    return valRow
+    
+# all players page
+allPlayersPagePath = ezstatslib.REPORTS_FOLDER + ezstatslib.ALLPLAYERS_FILE_NAME
+allPlayersPageText = ""
+
+allPlayersPageText += "<div align=\"center\"><h1> == ALL PLAYERS == </h1></div>\n"
+
+allPlayersDuelsHeaderRow=['', 'Frags', 'Deaths']
+for pl in jsonPlayers:
+    allPlayersDuelsHeaderRow.append(pl.name);    
+
+colAlign=[]
+for i in xrange(len(allPlayersDuelsHeaderRow)):
+    colAlign.append("center")
+
+    htmlTable = HTML.Table(header_row=allPlayersDuelsHeaderRow, border="1", cellspacing="3", col_align=colAlign,
+                       style="font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 12pt; border-collapse: collapse; border: 4px solid black")
+
+for pl in jsonPlayers:
+    tableRow = HTML.TableRow(cells=[htmlLink(ezstatslib.escapePlayerName(pl.name) + ".html", linkText="%s [%d]" % (ezstatslib.htmlBold(pl.name), pl.matchesPlayed)),
+                                    ezstatslib.htmlBold(pl.frags),
+                                    ezstatslib.htmlBold(pl.deaths)])
+        
+    for i in xrange(3,len(allPlayersDuelsHeaderRow)):
+        if allPlayersDuelsHeaderRow[i] in pl.duels.keys():
+            if allPlayersDuelsHeaderRow[i] == pl.name:
+                tableRow.cells.append( HTML.TableCell(str(pl.suicides), bgcolor=ezstatslib.BG_COLOR_GRAY) )
+            else:
+                kills  = pl.duels[allPlayersDuelsHeaderRow[i]][0]
+                deaths = pl.duels[allPlayersDuelsHeaderRow[i]][1]
+        
+                cellVal = "%s / %s" % (ezstatslib.htmlBold(kills)  if kills  > deaths else str(kills),
+                                       ezstatslib.htmlBold(deaths) if deaths > kills  else str(deaths))
+             
+                cellColor = ""
+                if kills == deaths:
+                    cellColor = ezstatslib.BG_COLOR_LIGHT_GRAY
+                elif kills > deaths:
+                    cellColor = ezstatslib.BG_COLOR_GREEN
+                else:
+                    cellColor = ezstatslib.BG_COLOR_RED
+                 
+                tableRow.cells.append( HTML.TableCell(cellVal, bgcolor=cellColor) )
+                
+        else:
+            tableRow.cells.append( HTML.TableCell(""))
+                 
+    htmlTable.rows.append(tableRow)  
+
+allPlayersPageText += str(htmlTable)
+
+allPlayersPageText += "</pre>\n"
+
+allPlayersPageText += "<table>\n"
+allPlayersPageText += getRankTableRow("frags", "Avg. Frags", jsonPlayers)
+allPlayersPageText += getRankTableRow("ra", "Avg. Red Armors", jsonPlayers)
+allPlayersPageText += getRankTableRow("ya", "Avg. Yellow Armors", jsonPlayers)
+allPlayersPageText += getRankTableRow("ga", "Avg. Green Armors", jsonPlayers)
+allPlayersPageText += getRankTableRow("mh", "Avg. Mega Health", jsonPlayers)
+allPlayersPageText += "</table>\n"
+    
+        
+allPlayersPage = open(allPlayersPagePath, "w")        
+allPlayersPageHeaderStr = ezstatslib.HTML_HEADER_SCRIPT_SECTION
+allPlayersPageHeaderStr = allPlayersPageHeaderStr.replace("PAGE_TITLE", "All players stats")
+allPlayersPage.write(allPlayersPageHeaderStr)
+allPlayersPage.write(ezstatslib.HTML_SCRIPT_SECTION_FOOTER)
+allPlayersPage.write(allPlayersPageText)
+allPlayersPage.write(ezstatslib.HTML_PRE_CLOSE_TAG)   
+# add script section for folding
+allPlayersPage.write(ezstatslib.HTML_BODY_FOLDING_SCRIPT)    
+allPlayersPage.write(ezstatslib.HTML_FOOTER_NO_PRE)    
+    
+    
 
 print "allCDates.size =", len(allCDates)
 

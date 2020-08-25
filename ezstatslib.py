@@ -37,7 +37,7 @@ possibleColors = [HtmlColor.COLOR_RED,
                   HtmlColor.COLOR_CYAN,
                   HtmlColor.COLOR_MAGENTA]
 
-CURRENT_VERSION = "1.24"
+CURRENT_VERSION = "1.25"
                   
 LOG_TIMESTAMP_DELIMITER = " <-> "
 
@@ -51,6 +51,7 @@ TEAM_LOGS_INDEX_FILE_NAME = "teamlogs.html"
 LOGS_BY_MAP_FILE_NAME = "logs_by_maps.html"
 TOURNAMENT_TABLE_FILE_NAME = "ezquakestats/tournament_table.html"
 TOTALS_FILE_NAME = "totals.html"
+ALLPLAYERS_FILE_NAME = "allplayers.html"
 REPORTS_FOLDER = "../";
 
 NEW_GIF_TAG = "<img src=\"new2.gif\" alt=\"New\" style=\"width:48px;height:36px;\">";
@@ -2158,6 +2159,36 @@ HTML_SCRIPT_HIGHCHARTS_PLAYER_LIFETIME_DEATH_LINE_TEMPLATE = "  {color: 'LINE_CO
   
 # =========================================================================================================================================================    
   
+HTML_SCRIPT_ALL_PLAYERS_RATING_TABLE_ROW = \
+"<tr style=\"height:80px;text-align:center\">\n" \
+"<td style=\"width:80px\">\n" \
+"<img src=\"ezquakestats\img\\total_page_imgs\PARAMETERNAME_1_1_noBG.png\" alt=\"PARAMETERDESCRIPTION\" title=\"PARAMETERDESCRIPTION\" width=\"65\" height=\"65\">\n" \
+"</td>\n" \
+"<td style=\"width:120px;text-align:right\">\n" \
+"<img src=\"ezquakestats\img\\total_page_imgs\medal1_noBG.png\" alt=\"PARAMETERDESCRIPTION\" title=\"PARAMETERDESCRIPTION\" width=\"36\" height=\"44\">\n" \
+"</td>\n" \
+"<td style=\"width:20px;\"></td>\n" \
+"<td style=\"width:200px; text-align:left\">\n" \
+"<p>GOLD_PLAYER_NAME</p>\n" \
+"</td>\n" \
+"<td style=\"width:120px;text-align:right\">\n" \
+"<img src=\"ezquakestats\img\\total_page_imgs\medal2_noBG.png\" alt=\"PARAMETERDESCRIPTION\" title=\"PARAMETERDESCRIPTION\" width=\"36\"  height=\"44\">\n" \
+"</td>\n" \
+"<td style=\"width:20px;\"></td>\n" \
+"<td style=\"width:200px; text-align:left\">\n" \
+"<p>SILVER_PLAYER_NAME</p>\n" \
+"</td>\n" \
+"<td style=\"width:120px;text-align:right\">\n" \
+"<img src=\"ezquakestats\img\\total_page_imgs\medal3_noBG.png\" alt=\"PARAMETERDESCRIPTION\" title=\"PARAMETERDESCRIPTION\" width=\"36\" height=\"44\">\n" \
+"</td>\n" \
+"<td style=\"width:20px;\"></td>\n" \
+"<td style=\"width:200px; text-align:left\">\n" \
+"<p>BRONZE_PLAYER_NAME</p>\n" \
+"</td>\n" \
+"</tr>\n"
+  
+  
+  
 BG_COLOR_GRAY  = "#bfbfbf"
 BG_COLOR_LIGHT_GRAY = "#e6e6e6"
 BG_COLOR_GREEN = "#00ff00"
@@ -2677,6 +2708,7 @@ class Player:
         #self.TODO_damage_gvn = 0
 
         self.rl_damages_gvn = []
+        self.rl_damages_tkn = []
 
         self.rl_damage_tkn = 0
         self.lg_damage_tkn = 0
@@ -2763,7 +2795,7 @@ class Player:
         
         self.killsByMinutes = []
         self.deathsByMinutes = []
-        self.suicidesByMinutes = []
+        self.suicidesByMinutes = []       
 
         
     def addLifetimeItem(self, element):
@@ -3259,18 +3291,18 @@ class Player:
             resstr = resstr[:-2]
         return resstr
 
-    def getRLSkill(self):
-        cnt = len(self.rl_damages_gvn)
+    def getRLSkill(self, rl_damages):
+        cnt = len(rl_damages)
         if cnt == 0:
             return "NA"
 
-        val110 = sum(1 for val in self.rl_damages_gvn if val[0] == 110)
-        val100 = sum(1 for val in self.rl_damages_gvn if val[0] >= 100)
-        val90  = sum(1 for val in self.rl_damages_gvn if val[0] >= 90)
-        val75  = sum(1 for val in self.rl_damages_gvn if val[0] >= 75)
-        val55  = sum(1 for val in self.rl_damages_gvn if val[0] >= 55)
+        val110 = sum(1 for val in rl_damages if val[0] == 110)
+        val100 = sum(1 for val in rl_damages if val[0] >= 100)
+        val90  = sum(1 for val in rl_damages if val[0] >= 90)
+        val75  = sum(1 for val in rl_damages if val[0] >= 75)
+        val55  = sum(1 for val in rl_damages if val[0] >= 55)
 
-        #valmore110 = sum(1 for val in self.rl_damages_gvn if val[0] > 110)
+        #valmore110 = sum(1 for val in rl_damages if val[0] > 110)
 
         return "DirectHit110: {0:5.4}%({1:3d}),  >100: {2:5.4}%({3:3d}),  >90: {4:5.4}%({5:3d}),  >75: {6:5.4}%({7:3d}),  >55: {8:5.4}%({9:3d})    Total: {10:4d}{11}".format(
                                          ((float(val110)) / float(cnt) * 100), val110, 
@@ -3280,6 +3312,12 @@ class Player:
                                          ((float(val55))  / float(cnt) * 100), val55,
                                           cnt,
                                           "    Attacks: {0:4d}".format(self.rl_attacks) if self.rl_attacks != -1 else "")
+    
+    def getRLSkillGvn(self):
+        return self.getRLSkill(self.rl_damages_gvn)
+    
+    def getRLSkillTkn(self):                                          
+        return self.getRLSkill(self.rl_damages_tkn)
 
     def getRLSkillJSON(self):
         cnt = len(self.rl_damages_gvn)
@@ -3545,7 +3583,7 @@ class Player:
             self.achievements.append( Achievement(AchievementType.LUMBERJACK, "%d axe kills" % (self.axe_kills)) )
 
         # ELECTROMASTER
-        if (self.lg_kills >= 15 and ((float(self.lg_kills) / float(self.kills) * 100)) >= 40.0) or (((float(self.lg_kills) / float(self.kills) * 100)) >= 75.0):
+        if (self.kills > 0 and self.lg_kills >= 15 and ( ((float(self.lg_kills) / float(self.kills) * 100) >= 40.0) or (((float(self.lg_kills) / float(self.kills) * 100)) >= 75.0))):
             self.achievements.append( Achievement(AchievementType.ELECTROMASTER, "{0:d} lazer gun kills({1:5.3}%)".format(self.lg_kills, (float(self.lg_kills) / float(self.kills) * 100))) )
 
         # FASTER_THAN_BULLET
@@ -3568,7 +3606,7 @@ class Player:
                                                  'Got killed with {} different weapons'.format(len(self.death_weapons))))
 
         # GL_LOVER
-        if self.gl_kills >= 15 and ((float(self.gl_kills) / float(self.kills) * 100)) >= 45.0:
+        if self.kills > 0 and self.gl_kills >= 15 and ((float(self.gl_kills) / float(self.kills) * 100)) >= 45.0:
             self.achievements.append( Achievement(AchievementType.GL_LOVER, "{0:d} grenade launcher kills({1:5.3}%)".format(self.gl_kills, (float(self.gl_kills) / float(self.kills) * 100))) )
                                                  
         # OVERTIME
