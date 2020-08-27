@@ -225,7 +225,8 @@ for child in root:
 
                 if evtype.tag == "death":
                     deathCnt += 1
-                    elem = DeathElement(evtype)
+                    elem = DeathElement()
+                    elem.Init(evtype)
                     elements.append(elem)
                     deathElements.append(elem)
 
@@ -267,14 +268,14 @@ minutesPlayedXML = int((lastTimeStamp - 2)/60) + 1  # 2 sec is correction for ev
 for pl in xmlPlayers:
     pl.initPowerUpsByMinutesXML(minutesPlayedXML)
 
-print i
-print j 
-print k 
+#print i
+#print j 
+#print k 
 
-print "Elements cnt =", len(elements)
-print "Damage cnt =", damageCnt
-print "Death cnt =", deathCnt
-print "PickMapItems cnt =", pickmapitemCnt
+#print "Elements cnt =", len(elements)
+#print "Damage cnt =", damageCnt
+#print "Death cnt =", deathCnt
+#print "PickMapItems cnt =", pickmapitemCnt
 print "XML players:", xmlPlayersStr
 print "minutesPlayedXML:", minutesPlayedXML
 
@@ -289,7 +290,7 @@ for elem in damageElements:
                     pl.damageSelf += elem.value
     else:
 
-        print "%f  %s -> %s  %d \"%d\" splash: %d" % (elem.time, elem.attacker, elem.target, elem.armor, elem.value, elem.splash)
+        #print "%f  %s -> %s  %d \"%d\" splash: %d" % (elem.time, elem.attacker, elem.target, elem.armor, elem.value, elem.splash)
 
         for pl in xmlPlayers:
             if pl.name == elem.attacker and elem.type != "tele1" and elem.type != "trigger":
@@ -303,11 +304,11 @@ for elem in damageElements:
                 else:
                     pl.damageTkn += elem.value
 
-for pl in xmlPlayers:
-    print "Player \"%s\":   gvn:  %d, tkn:  %d, self:  %d" % (pl.name, pl.damageGvn, pl.damageTkn, pl.damageSelf)
-    print "                 gvnA: %d, tknA: %d, selfA: %d" % (pl.damageGvnArmor, pl.damageTknArmor, pl.damageSelfArmor)
-    print "                 gvnS: %d, tknS: %d, selfS: %d" % (pl.damageGvn+pl.damageGvnArmor, pl.damageTkn+pl.damageTknArmor, pl.damageSelf+pl.damageSelfArmor)
-    print "---------------------------------------------"
+# for pl in xmlPlayers:
+    # print "Player \"%s\":   gvn:  %d, tkn:  %d, self:  %d" % (pl.name, pl.damageGvn, pl.damageTkn, pl.damageSelf)
+    # print "                 gvnA: %d, tknA: %d, selfA: %d" % (pl.damageGvnArmor, pl.damageTknArmor, pl.damageSelfArmor)
+    # print "                 gvnS: %d, tknS: %d, selfS: %d" % (pl.damageGvn+pl.damageGvnArmor, pl.damageTkn+pl.damageTknArmor, pl.damageSelf+pl.damageSelfArmor)
+    # print "---------------------------------------------"
 
 
 
@@ -444,12 +445,10 @@ f.close()
 
 # check that there are more than 1 players
 if len(allplayers) == 0:
-    #print "No players at all"
     ezstatslib.logError("No players at all\n")
     exit(1)
 
 if len(allplayers) == 1:
-    #print "Only one player:", allplayers[0].name
     ezstatslib.logError("Only one player: %s\n" % (allplayers[0].name))
     exit(1)
 
@@ -533,7 +532,6 @@ for element in elements:
                  
     # telefrag
     if isinstance(element, DeathElement) and element.type == "tele1":
-        print "EEE: attacker: %s, target: %s" % (element.attacker, element.target)
         who = element.attacker
         whom = element.target
         for pl in allplayers:
@@ -551,7 +549,6 @@ for element in elements:
             fillH2H(who,whom,currentMinute)
     
         if not isFoundWho or not isFoundWhom:
-            #print "ERROR: count telefrag", who, "-", whom, ":", logline
             ezstatslib.logError("ERROR: count telefrag %s-%s: %s\n" % (who, whom, logline))
             exit(0)
     
@@ -571,7 +568,6 @@ for element in elements:
                 isFound = True
                 break;
         if not isFound:
-            #print "ERROR: count suicides"
             ezstatslib.logError("ERROR: count suicides\n")
             exit(0)    
         continue    
@@ -611,13 +607,13 @@ for element in elements:
         weap = element.type
     
         if not weap in ezstatslib.possibleWeapons:
-            #print "ERROR: unknown weapon:", weap
-            ezstatslib.logError("ERROR: unknown weapon: %s\n" % (weap))
             if weap == "lg_beam" or weap == "lg_dis":
                 weap = "lg"
             elif weap == "stomp" or weap == "squish" or weap == "lava" or weap == "suicide":
+                ezstatslib.logError("ERROR: weapon is treated as 'other': %s\n" % (weap))
                 weap = "other"  # TODO fall on the player  # TODO ULTRA RARE ACH
             else:
+                ezstatslib.logError("ERROR: unknown weapon: %s\n" % (weap))
                 exit(0)
     
         isFoundWho = False
@@ -654,20 +650,22 @@ for element in elements:
         else:
             value = element.value
         
-        if not weap in ezstatslib.possibleWeapons:
-            print "ERROR: unknown weapon:", weap
-            ezstatslib.logError("ERROR: unknown weapon: %s\n" % (weap))
+        if not weap in ezstatslib.possibleWeapons:            
             if weap == "lg_beam":
                 weap = "lg"
             elif weap == "fall" or weap == "squish" or weap == "lava":
+                ezstatslib.logError("ERROR: damage weapon is treated as 'other': %s\n" % (weap))
                 who = whom
                 weap = "other"  # TODO world -> whom
             elif weap == "suicide":
+                ezstatslib.logError("ERROR: damage weapon is treated as 'other': %s\n" % (weap))
                 weap = "other"
                 value = 0
             elif weap == "stomp":
+                ezstatslib.logError("ERROR: damage weapon is treated as 'other': %s\n" % (weap))
                 weap = "other"  # TODO fall on the player
             else:
+                ezstatslib.logError("ERROR: unknown weapon: %s\n" % (weap))
                 exit(0)
 
         isFoundWho = False
@@ -779,7 +777,7 @@ for i in xrange(len(elementsByTime)):
                         pl.suicide_kills.append([tt,target2 if isSuicide1 else target1,wp2 if isSuicide1 else wp1])
                     
                 ll = "OLOLO: %f suicide + kill(%s) by %s [wps: %s + %s]\n" % (tt, target2 if isSuicide1 else target1, attackPl, wp1 if isSuicide1 else wp2, wp2 if isSuicide1 else wp1)
-                ezstatslib.logError(ll)
+                # ezstatslib.logError(ll)
                 tmpComboStr += ll
 
             else: # non suicide
@@ -812,7 +810,7 @@ for i in xrange(len(elementsByTime)):
                         pl.double_kills.append([target1,target2,wp1])
                     
                 ll = "OLOLO: %f kill(%s) + kill(%s) by %s [wps: %s + %s]\n" % (tt, target1, target2, attacker1, wp1, wp2)
-                ezstatslib.logError(ll)
+                # ezstatslib.logError(ll)
                 tmpComboStr += ll
 
         else:
@@ -824,11 +822,10 @@ for i in xrange(len(elementsByTime)):
                     pl.mutual_kills.append([tt,target2,wp2,wp1])            
             
             ll = "OLOLO: %f mutual kill: (attacker1(%s), target1(%s), wp1(%s)); (attacker2(%s), target2(%s), wp2(%s)\n" % (tt, attacker1, target1, wp1, attacker2, target2, wp2)
-            ezstatslib.logError(ll)
+            # ezstatslib.logError(ll)
             tmpComboStr += ll
 
     elif deaths >= 3:
-        # TODO
         if deaths == 3:
             attacker = ""            
             isAttackerTheSame = True
@@ -867,7 +864,7 @@ for i in xrange(len(elementsByTime)):
                 resStr += "(attacker%d(%s), target%d(%s), wp%s(%s)); " % (deathNum, elementsByTime[i][1][j].attacker, deathNum, elementsByTime[i][1][j].target, deathNum, elementsByTime[i][1][j].type)
                 deathNum += 1
 
-        ezstatslib.logError("OLOLO: %f deaths(%d) >= 3: %s\n" % (tt, deaths, resStr))
+        # ezstatslib.logError("OLOLO: %f deaths(%d) >= 3: %s\n" % (tt, deaths, resStr))
         tmpComboStr += ("OLOLO: %f deaths(%d) >= 3: %s\n" % (tt, deaths, resStr))
         
 tmpComboStr += "==========================================\n"        
@@ -1713,28 +1710,28 @@ if options.withScripts:
 if options.withScripts:
     resultString += "</pre>POWER_UPS_TIMELINE_VER2_PLACE\n<pre>"
 
-print "currentMinute:", currentMinute
-print "matchMinutesCnt:", matchMinutesCnt
+#print "currentMinute:", currentMinute
+#print "matchMinutesCnt:", matchMinutesCnt
 for pl in allplayersByFrags:
-    for el in headToHead[pl.name]:
-        print pl.name, ":", el[0], " - ", el[1], " - ", el[2]
+    # for el in headToHead[pl.name]:
+        # print pl.name, ":", el[0], " - ", el[1], " - ", el[2]
         
-    print "%s: ra[%d] %s" % (pl.name, pl.ra, str(pl.raByMinutes))
-    print "%s: ya[%d] %s" % (pl.name, pl.ya, str(pl.yaByMinutes))
-    print "%s: ga[%d] %s" % (pl.name, pl.ga, str(pl.gaByMinutes))
-    print "%s: mh[%d] %s" % (pl.name, pl.mh, str(pl.mhByMinutes))
+    # print "%s: ra[%d] %s" % (pl.name, pl.ra, str(pl.raByMinutes))
+    # print "%s: ya[%d] %s" % (pl.name, pl.ya, str(pl.yaByMinutes))
+    # print "%s: ga[%d] %s" % (pl.name, pl.ga, str(pl.gaByMinutes))
+    # print "%s: mh[%d] %s" % (pl.name, pl.mh, str(pl.mhByMinutes))
     
     puStr = ""
     for pu in pl.powerUps:
         puStr += "%s, " % (str(pu))
-    print "%s: powerUps: %s" % (pl.name, puStr)
+    # print "%s: powerUps: %s" % (pl.name, puStr)
     
     # streaks
     strkStr = ""
     for strk in pl.calculatedStreaks:
         strkStr += "%s [%s], " % (strk.toString(), str(strk.names))
         
-    print "%s: streaks: %s" % (pl.name, strkStr)
+    # print "%s: streaks: %s" % (pl.name, strkStr)
 
 # mutual kills 
 resultString += "\nMutual kills: \n"
@@ -2642,8 +2639,6 @@ def writeHtmlWithScripts(f, sortedPlayers, resStr):
     rlSkillDivStrs = ""
     rowsCount = (len(allplayersByFrags) / 3) + (0 if len(allplayersByFrags) % 3 == 0 else 1)
     
-    print "rowsCount", rowsCount
-    
     for rowNum in xrange(rowsCount):
         rlSkillDivStr = ezstatslib.HTML_SCRIPT_HIGHCHARTS_RL_SKILL_DIV_AND_TABLE_TAG
         tableRowsStr = ""
@@ -3200,13 +3195,7 @@ jsonf.write(jsonStr)
 jsonf.close()
     
 ooo = json.loads(jsonStr)
-
-# print ooo
-# for oo in ooo:
-    # print oo
-    # for o in oo:
-        # print o, ":", oo[o]
-    
+   
 print filePath
 
 jsonDirPath = ezstatslib.REPORTS_FOLDER + "json/"
@@ -3298,13 +3287,16 @@ class JsonPlayer:
         
         
         self.matches = {}
+        
+    def rank(self):
+        return self.frags - self.deaths - self.suicides
 
 jsonPlayers = []
 allCDates = set()
     
 for cdate, size, path in sorted(entries, reverse=False):
     #print time.ctime(cdate), size, os.path.basename(path)    
-    print "AAA", cdate, size, path
+    #print "AAA", cdate, size, path
     
     dateRes = re.search("(?<=]_).*(?=.html.json)", path)                  
     dt = datetime.strptime(dateRes.group(0), "%Y-%m-%d_%H_%M_%S")
@@ -3314,12 +3306,12 @@ for cdate, size, path in sorted(entries, reverse=False):
     
     with open(path, 'r') as f:        
         jsonStrRead = json.load(f)
-        print "JJJ", jsonStrRead
+        #print "JJJ", jsonStrRead
         mapname = ""
         gamemode = ""
         reportname = ""
         for ooo in jsonStrRead:
-            print ooo
+            #print ooo
             if ooo == "matchdate":
                 pass
             
@@ -3344,7 +3336,7 @@ for cdate, size, path in sorted(entries, reverse=False):
                     
                     currentJsonPlayer.matchesPlayed = 1
                     for o in oo:
-                        print o
+                        # print o
                         # exec("currentJsonPlayer.%s = %s" % (o, oo[o]))
                         if o == "name":
                             currentJsonPlayer.name = oo[o]
@@ -3969,8 +3961,10 @@ allPlayersPageText = ""
 
 allPlayersPageText += "<div align=\"center\"><h1> == ALL PLAYERS == </h1></div>\n"
 
-allPlayersDuelsHeaderRow=['', 'Frags', 'Deaths']
-for pl in jsonPlayers:
+jsonPlayersByRank = sorted(jsonPlayers, key=lambda x: (x.rank()), reverse=True)
+
+allPlayersDuelsHeaderRow=['', 'Rank', 'Frags', 'Deaths']
+for pl in jsonPlayersByRank:
     allPlayersDuelsHeaderRow.append(pl.name);    
 
 colAlign=[]
@@ -3980,12 +3974,13 @@ for i in xrange(len(allPlayersDuelsHeaderRow)):
     htmlTable = HTML.Table(header_row=allPlayersDuelsHeaderRow, border="1", cellspacing="3", col_align=colAlign,
                        style="font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 12pt; border-collapse: collapse; border: 4px solid black")
 
-for pl in jsonPlayers:
+for pl in jsonPlayersByRank:
     tableRow = HTML.TableRow(cells=[htmlLink(ezstatslib.escapePlayerName(pl.name) + ".html", linkText="%s [%d]" % (ezstatslib.htmlBold(pl.name), pl.matchesPlayed)),
+                                    HTML.TableCell(ezstatslib.htmlBold(pl.rank()), bgcolor=ezstatslib.BG_COLOR_GREEN if pl.rank() >= 0 else ezstatslib.BG_COLOR_RED),
                                     ezstatslib.htmlBold(pl.frags),
                                     ezstatslib.htmlBold(pl.deaths)])
         
-    for i in xrange(3,len(allPlayersDuelsHeaderRow)):
+    for i in xrange(4,len(allPlayersDuelsHeaderRow)):
         if allPlayersDuelsHeaderRow[i] in pl.duels.keys():
             if allPlayersDuelsHeaderRow[i] == pl.name:
                 tableRow.cells.append( HTML.TableCell(str(pl.suicides), bgcolor=ezstatslib.BG_COLOR_GRAY) )
@@ -4037,16 +4032,16 @@ allPlayersPage.write(ezstatslib.HTML_FOOTER_NO_PRE)
     
     
 
-print "allCDates.size =", len(allCDates)
+# print "allCDates.size =", len(allCDates)
 
-for pl in jsonPlayers:
-    print "count:", len(pl.fragsByMatches)
+# for pl in jsonPlayers:
+    # print "count:", len(pl.fragsByMatches)
     
-print allCDates
-print sorted(allCDates)
+# print allCDates
+# print sorted(allCDates)
 
-print "isOverTime:", isOverTime
-print "timelimit:", timelimit
-print "duration:", duration
-print "minutesPlayedXML:", minutesPlayedXML
+# print "isOverTime:", isOverTime
+# print "timelimit:", timelimit
+# print "duration:", duration
+# print "minutesPlayedXML:", minutesPlayedXML
         

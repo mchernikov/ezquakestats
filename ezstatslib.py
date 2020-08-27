@@ -37,7 +37,7 @@ possibleColors = [HtmlColor.COLOR_RED,
                   HtmlColor.COLOR_CYAN,
                   HtmlColor.COLOR_MAGENTA]
 
-CURRENT_VERSION = "1.25"
+CURRENT_VERSION = "1.26"
                   
 LOG_TIMESTAMP_DELIMITER = " <-> "
 
@@ -2484,8 +2484,8 @@ def createStreaksHtmlTable(sortedPlayers, streakType):
         strkRes,maxStrk,strkNames = pl.getCalculatedStreaks() if streakType == StreakType.KILL_STREAK else pl.getDeatchStreaks()
         streaksList.append( [pl.name, strkRes, strkNames] )
         maxCnt = max(maxCnt,len(strkRes))
-        if streakType == StreakType.KILL_STREAK and maxStrk != pl.streaks:
-            logError("WARNING: for players %s calculated streak(%d) is NOT equal to given streak(%d)\n" % (pl.name, maxStrk, pl.streaks))
+        # if streakType == StreakType.KILL_STREAK and maxStrk != pl.streaks:
+            # logError("WARNING: for players %s calculated streak(%d) is NOT equal to given streak(%d)\n" % (pl.name, maxStrk, pl.streaks))
 
     cellWidth = "20px"
     streaksHtmlTable = HTML.Table(border="1", cellspacing="1",
@@ -2524,8 +2524,8 @@ def createFullStreaksHtmlTable(sortedPlayers, streakType):
         strkRes,maxStrk = pl.getCalculatedStreaksFull() if streakType == StreakType.KILL_STREAK else pl.getDeatchStreaksFull()
         streaksList.append( [pl.name, strkRes] )
         maxCnt = max(maxCnt,len(strkRes))
-        if streakType == StreakType.KILL_STREAK and maxStrk != pl.streaks:
-            logError("WARNING: for players %s calculated streak(%d) is NOT equal to given streak(%d)\n" % (pl.name, maxStrk, pl.streaks))
+        # if streakType == StreakType.KILL_STREAK and maxStrk != pl.streaks:
+            # logError("WARNING: for players %s calculated streak(%d) is NOT equal to given streak(%d)\n" % (pl.name, maxStrk, pl.streaks))
 
     cellWidth = "20px"
     streaksHtmlTable = HTML.Table(border="1", cellspacing="1",
@@ -2773,8 +2773,8 @@ class Player:
         self.lifetime.append( PlayerLifetimeElement(0,self.currentHealth,self.currentArmor) )        
         
         self.lifetimeXML = 0.0
-        self.firstDeathXML = ""
-        self.lastDeathXML = ""
+        self.firstDeathXML = DeathElement()
+        self.lastDeathXML = DeathElement()
         self.connectionTimeXML = 0
         
         self.health_15_cnt = 0
@@ -2926,8 +2926,8 @@ class Player:
         playTime = 0
         minutesCnt = len(self.gaByMinutes)  # TODO get minutes count
         if minutesCnt != 0 and len(self.lifetime) > 2:
-            lastActionTime = self.lifetime[len(self.lifetime)-2].time  # last lifetime element is added in correctLifetime method 
-            playTime = self.lifetimeXML + (lastActionTime - self.lastDeathXML.time)
+            lastActionTime = self.lifetime[len(self.lifetime)-2].time  # last lifetime element is added in correctLifetime method
+            playTime = 0 if self.lifetimeXML == 0 else self.lifetimeXML + (lastActionTime - self.lastDeathXML.time)
         return playTime
 
     def recoverArmorStats(self):
@@ -3517,7 +3517,7 @@ class Player:
             self.achievements.append( Achievement(AchievementType.CHILD_KILLER, "%d spawn frags%s" % (self.spawnfrags, "" if self.spawnfrags < 15 else ". %d CARL!!" % (self.spawnfrags))) )
 
         # CHILD_LOVER
-        if self.spawnfrags == 0:
+        if self.playTimeXML() > ((len(matchProgress) / 2) * 60) and self.spawnfrags == 0:
             self.achievements.append( Achievement(AchievementType.CHILD_LOVER, "NO spawn frags") )
             
         # ALWAYS_THE_FIRST
@@ -3552,7 +3552,7 @@ class Player:
                     self.achievements.append( Achievement(AchievementType.ALWAYS_THE_LAST, "the last place from the 1st minute until the finish") )
 
         # ROCKETS_LOVER
-        if self.kills != 0 and self.kills == self.rl_kills:
+        if self.kills != 0 and self.playTimeXML() > ((len(matchProgress) / 2) * 60) and self.kills == self.rl_kills:
             self.achievements.append( Achievement(AchievementType.ROCKETS_LOVER, "all %d kills made via rocket launcher" % (self.rl_kills)) )
 
         # DUEL_WINNER
@@ -3561,14 +3561,14 @@ class Player:
 
         # SNIPER
         if len(self.rl_damages_gvn) != 0:
-            if (sum(1 for val in self.rl_damages_gvn if val[0] == 110) / float(len(self.rl_damages_gvn)) > 0.45 and len(self.rl_damages_gvn) > 30):
+            if (sum(1 for val in self.rl_damages_gvn if val[0] == 110) / float(len(self.rl_damages_gvn)) > 0.35 and len(self.rl_damages_gvn) > 30):
                 self.achievements.append( Achievement(AchievementType.SNIPER, "direct hit is {0:5.3}%".format((sum(1 for val in self.rl_damages_gvn if val[0] == 110) * 100) / float(len(self.rl_damages_gvn)))))
         else:
             if self.rlskill_dh >= 40:
                 self.achievements.append( Achievement(AchievementType.SNIPER, "direct hit is %d" % (self.rlskill_dh)) )
 
         # PERSONAL_STALKER
-        if len(matchProgress) != 0 and len(matchProgress[0]) > 3:
+        if self.playTimeXML() > ((len(matchProgress) / 2) * 60) and len(matchProgress) != 0 and len(matchProgress[0]) > 3:
             sortedHeadToHead = sorted(headToHead[self.name], key=lambda x: x[1], reverse=True)
             if sortedHeadToHead[0][0] != self.name and sortedHeadToHead[0][1] > (self.kills - sortedHeadToHead[0][1]):
                 self.achievements.append( Achievement(AchievementType.PERSONAL_STALKER, "killed %s %d times what more than all others taken together(%d)" % (sortedHeadToHead[0][0], sortedHeadToHead[0][1], (self.kills - sortedHeadToHead[0][1]))) )
@@ -3691,6 +3691,7 @@ AchievementType = enum( LONG_LIVE  = 1, #"Long Live and Prosper",  # the 1st 30 
                         COMBO_TRIPLE_KILL = 53,  # "Three enemies with a single shot" : "killed %s, %s and %s with one %s shot!"   #three kills with on shot  #XML_SPECIFIC    DONE
                         KILLSTEAL_STEALER = 54,  # "King of theft" : "stole %d kills" # maximum kill steals - stealer                                           #DEATHMATCH_SPECIFIC   DONE
                         KILLSTEAL_VICTIM = 55,   # "Too unlucky and carefree..." : "honestly earned kills were stolen %d times" # maximum kill steals - victim  #DEATHMATCH_SPECIFIC   DONE
+                        FAST_AND_FURIOUS = 56,   # "Fast and Furious!" : "the fastest player with %d max and %d avg speed"      #XML_SPECIFIC   DONE
                         
                                             )
 
@@ -3855,6 +3856,8 @@ class Achievement:
             return "King of theft"
         if self.achtype == AchievementType.KILLSTEAL_VICTIM:
             return "Too unlucky and carefree..."
+        if self.achtype == AchievementType.FAST_AND_FURIOUS:
+            return "Fast and Furious!"
 
     # AchievementLevel = enum(UNKNOWN=0, BASIC_POSITIVE=1, BASIC_NEGATIVE=2, ADVANCE_POSITIVE=3, ADVANCE_NEGATIVE=5, RARE_POSITIVE=6, RARE_NEGATIVE=7, ULTRA_RARE=8)
     def level(self):
@@ -3887,7 +3890,8 @@ class Achievement:
            self.achtype == AchievementType.CHILD_LOVER        or \
            self.achtype == AchievementType.GL_LOVER           or \
            self.achtype == AchievementType.COMBO_KAMIKAZE     or \
-           self.achtype == AchievementType.KILLSTEAL_STEALER:
+           self.achtype == AchievementType.KILLSTEAL_STEALER  or \
+           self.achtype == AchievementType.FAST_AND_FURIOUS:
             return AchievementLevel.ADVANCE_POSITIVE            
             
         if self.achtype == AchievementType.SUICIDE_KING    or \
@@ -4100,6 +4104,8 @@ class Achievement:
             return path + "ach_killsteal_stealer.png"
         if self.achtype == AchievementType.KILLSTEAL_VICTIM:
             return path + "ach_killsteal_victim.png"
+        if self.achtype == AchievementType.FAST_AND_FURIOUS:
+            return path + "ach_fast_and_furious.png"
 
         # temp images
         if self.achtype == AchievementType.HUNDRED_KILLS:
@@ -4250,6 +4256,25 @@ def calculateCommonAchievements(allplayers, headToHead, minutesPlayed, isTeamGam
                 pl.achievements.append( Achievement(AchievementType.KILLSTEAL_STEALER, "stole %d kills" % (len(pl.killsteals_stealer))) )
             if maxStealsVictim >= 3 and len(pl.killsteals_victim) == maxStealsVictim:
                 pl.achievements.append( Achievement(AchievementType.KILLSTEAL_VICTIM, "honestly earned kills were stolen %d times" % (len(pl.killsteals_victim))) )
+                
+    # FAST_AND_FURIOUS
+    maxSpeedMaxVal = -1
+    avgSpeedMaxVal = -1
+    maxSpeedMaxPlayer = ""
+    avgSpeedMaxPlayer = ""
+    for pl in allplayers:
+        if pl.speed_max >= maxSpeedMaxVal:
+            maxSpeedMaxVal = pl.speed_max
+            maxSpeedMaxPlayer = pl.name
+        if pl.speed_avg >= avgSpeedMaxVal:
+            avgSpeedMaxVal = pl.speed_avg
+            avgSpeedMaxPlayer = pl.name
+    
+    if maxSpeedMaxPlayer == avgSpeedMaxPlayer:
+        for pl in allplayers:
+            if pl.name == maxSpeedMaxPlayer:
+                pl.achievements.append( Achievement(AchievementType.FAST_AND_FURIOUS, "the fastest player with %d max and %d avg speed" % (pl.speed_max, pl.speed_avg)) )
+            
                 
 class Team:
     def __init__(self, teamname):
@@ -4460,7 +4485,7 @@ class DeathElement:
         self.isSuicide = False
         self.isSpawnFrag = False
 
-    def __init__(self, elem):
+    def Init(self, elem):
         self.time = float(elem.find("time").text)
         self.attacker = elem.find("attacker").text
         self.target = elem.find("target").text
