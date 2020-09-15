@@ -37,7 +37,7 @@ possibleColors = [HtmlColor.COLOR_RED,
                   HtmlColor.COLOR_CYAN,
                   HtmlColor.COLOR_MAGENTA]
 
-CURRENT_VERSION = "1.26"
+CURRENT_VERSION = "1.27"
                   
 LOG_TIMESTAMP_DELIMITER = " <-> "
 
@@ -61,7 +61,15 @@ SKIPED_LINES_FILE_NAME = "skiped_lines"
 
 HTML_CURRENT_VERSION = "<!-- CURRENT_VERSION: " + CURRENT_VERSION + " -->\n"
 
-HTML_HEADER_STR = "<!DOCTYPE html>\n<html>\n<head>\n<link rel=\"icon\" type=\"image/png\" href=\"ezquakestats/img/quake-icon.png\"/>\n" + HTML_CURRENT_VERSION + "</head>\n<body>\n<pre>"
+HTML_BODY_OPEN = "<body onload=\"onPageLoad();\">\n"
+
+HTML_SCRIPT_ON_PAGE_LOAD_FUNCTION = \
+    "function onPageLoad() {\n" \
+    "FUNCTIONS" \
+    "}\n"
+    
+
+HTML_HEADER_STR = "<!DOCTYPE html>\n<html>\n<head>\n<link rel=\"icon\" type=\"image/png\" href=\"ezquakestats/img/quake-icon.png\"/>\n" + HTML_CURRENT_VERSION + "<script>" + HTML_SCRIPT_ON_PAGE_LOAD_FUNCTION.replace("FUNCTIONS","") + "</script>" + "</head>\n" + HTML_BODY_OPEN + "<pre>"
 HTML_FOOTER_STR = "</pre>\n</body>\n</html>"
 
 HTML_HEADER_SCRIPT_SECTION = \
@@ -71,29 +79,56 @@ HTML_HEADER_SCRIPT_SECTION = \
     "<link rel=\"icon\" type=\"image/png\" href=\"ezquakestats/img/quake-icon.png\" />" \
     "<script type=\"text/javascript\" src=\"https://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js\"></script>\n" \
     "<script type=\"text/javascript\" src=\"https://www.gstatic.com/charts/loader.js\"></script>\n" \
-    "<style>\n" \
-    ".tooltip {position:absolute;z-index:1070;display:block;font-size:12px;line-height:1.4;visibility:visible;filter:alpha(opacity=0);opacity:0}\n" \
-    ".tooltip.in{filter:alpha(opacity=90);opacity:.9}\n" \
-    ".tooltip.top{padding:5px 0;margin-top:-3px}.\n" \
-    "tooltip.right{padding:0 5px;margin-left:3px}\n" \
-    ".tooltip.bottom{padding:5px 0;margin-top:3px}\n" \
-    ".tooltip.left{padding:0 5px;margin-left:-3px}\n" \
-    ".tooltip-inner{max-width:200px;padding:3px 8px;color:#fff;text-align:center;text-decoration:none;background-color:#000;border-radius:4px}\n" \
-    ".tooltip-arrow{position:absolute;width:0;height:0;border-color:transparent;border-style:solid}\n" \
-    ".tooltip.top \n" \
-    ".tooltip-arrow{bottom:0;left:50%;margin-left:-5px;border-width:5px 5px 0;border-top-color:#000}\n" \
-    ".tooltip.top-left \n" \
-    ".tooltip-arrow{bottom:0;left:5px;border-width:5px 5px 0;border-top-color:#000}\n" \
-    ".tooltip.top-right .tooltip-arrow{right:5px;bottom:0;border-width:5px 5px 0;border-top-color:#000}\n" \
-    ".tooltip.right .tooltip-arrow{top:50%;left:0;margin-top:-5px;border-width:5px 5px 5px 0;border-right-color:#000}\n" \
-    ".tooltip.left .tooltip-arrow{top:50%;right:0;margin-top:-5px;border-width:5px 0 5px 5px;border-left-color:#000}\n" \
-    ".tooltip.bottom .tooltip-arrow{top:0;left:50%;margin-left:-5px;border-width:0 5px 5px;border-bottom-color:#000}\n" \
-    ".tooltip.bottom-left .tooltip-arrow{top:0;left:5px;border-width:0 5px 5px;border-bottom-color:#000}\n" \
-    ".tooltip.bottom-right .tooltip-arrow{top:0;right:5px;border-width:0 5px 5px;border-bottom-color:#000}\n" \
-    "</style>\n" \
     "<link href=\"http://seiyria.com/bootstrap-slider/css/bootstrap-slider.css\" rel=\"stylesheet\">\n"\
+    "<style>\n" \
+    "SLIDER_STYLE" \
+    "</style>\n" \
     "<script type=\"text/javascript\">\n"
-    
+
+HTML_SLIDER_STYLE_HORIZONTAL = \
+    ".slider-handle::after{\n" \
+    "    content: attr(aria-valuenow);\n" \
+    "    position: absolute;\n" \
+    "    bottom: calc(100% + 0.5em);\n" \
+    "    left: 50%;\n" \
+    "    transform: translateX(-50%);\n" \
+    "    font-size: 0.95em;\n" \
+    "    font-weight: 900;\n" \
+    "    color: #393f50;\n" \
+    "    background-color: white;\n" \
+    "    box-shadow: 0px 0px 9px 0px rgba(182, 182, 182, 0.8);\n" \
+    "    display: flex;\n" \
+    "    justify-content: center;\n" \
+    "    align-items: center;\n" \
+    "    border-radius: 0.5em;\n" \
+    "    width: 4em;\n" \
+    "    height: 2.5em;\n" \
+    "}\n" \
+    "   .slider.slider-horizontal {\n" \
+    "       width: 80%;\n" \
+    "       height: 20px;\n" \
+    "  }\n"   
+
+HTML_SLIDER_STYLE_VERTICAL = \
+" .slider-handle::after{\n" \
+"     content: attr(aria-valuenow);\n" \
+"     position: absolute;\n" \
+"     bottom: calc(100% + 0.5em);\n" \
+"     left: 50%;\n" \
+"     transform: translateY(115%)  translateX(-130%);\n" \
+"     font-size: 0.95em;\n" \
+"     font-weight: 900;\n" \
+"     color: #393f50;\n" \
+"     background-color: white;\n" \
+"     box-shadow: 0px 0px 9px 0px rgba(182, 182, 182, 0.8);\n" \
+"     display: flex;\n" \
+"     justify-content: center;\n" \
+"     align-items: center;\n" \
+"     border-radius: 0.5em;\n" \
+"     width: 2.0em;\n" \
+"     height: 1.8em;\n" \
+" }\n"
+
 HTML_HEADER_SCRIPT_SECTION = HTML_HEADER_SCRIPT_SECTION.replace("HTML_CURRENT_VERSION_PLACE", HTML_CURRENT_VERSION)   
 
 HTML_HEADER_SCRIPT_GOOGLE_CHARTS_LOAD = \
@@ -233,7 +268,8 @@ HTML_SCRIPT_MAIN_STATS_BARS_FUNCTION = \
     "    minValue: 0,\n" \
     "  },\n" \
     "  vAxis: {\n" \
-    "    title: ''\n" \
+    "    title: '',\n" \
+    "    maxValue: MAX_VALUE,\n" \
     "  },\n" \
     "  annotations: {\n" \
     "    alwaysOutside: true,\n" \
@@ -835,6 +871,10 @@ HTML_SCRIPT_ALL_STREAK_TIMELINE_DIV_TAG = \
   "        <tr style=\"height: 30px;\"></tr>\n" \
   "      </table>\n"
 #  "<input type=\"range\" min=\"1\" max=\"15\" step=\"1\" value=\"3\" size=\"100\" onchange=\"drawAllStreakTimelines(this.value)\">\n"
+  
+HTML_SCRIPT_ALL_PLAYERS_DUELS_TABLE_DIV_TAG = \
+ "      <div><input id=\"all_players_duels_slider\"></div>\n" \
+ "      DUELS_TABLE\n"
 
 # =========================================================================================================================================================
 
@@ -1065,12 +1105,18 @@ HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_TICK_POSITIONS = \
 "},\n" \
 "tickPositions: [TICK_POSITIONS_VALS],\n"
 
+HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE_BEGIN = \
+"    plotLines: [\n"
+
 HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE = \
-"    plotLines: [{\n" \
-"        color: '#FF0000', // Red\n" \
+"    {\n" \
+"        color: 'VERTICAL_LINE_COLOR',\n" \
 "        width: 7,\n" \
 "        value: VERTICAL_LINE_POS // Position, you'll have to translate this to the values on your x axis\n" \
-"    }]\n"
+"    },\n"
+
+HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE_END = \
+"    ]\n"
 
 # =========================================================================================================================================================
 # "            categories: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']\n" \
@@ -1506,7 +1552,7 @@ HTML_EXPAND_POWER_UPS_CHECKBOX_TAG = "<input type=\"checkbox\" id=\"expandPowerU
 HTML_HEAD_FOLDING_LINKS = \
   "<link rel='stylesheet' id='symple_shortcode_styles-css'  href='symple_shortcodes_styles.css' type='text/css' media='all' />\n"
 
-HTML_SCRIPT_SECTION_FOOTER = "</script>\n" + HTML_HEAD_FOLDING_LINKS + "</head>\n<body>\n<pre>"
+HTML_SCRIPT_SECTION_FOOTER = "</script>\n" + HTML_HEAD_FOLDING_LINKS + "</head>\n" + HTML_BODY_OPEN + "<pre>"
 
 HTML_FOOTER_NO_PRE = "</body>\n</html>"
 
@@ -1521,25 +1567,106 @@ HTML_BODY_FOLDING_SCRIPT = \
   "<script src=\"https://code.highcharts.com/modules/accessibility.js\"></script>\n" \
   "<script src=\"https://code.highcharts.com/modules/series-label.js\"></script>\n" \
   "<script src=\"https://code.highcharts.com/modules/export-data.js\"></script>\n" \
-  "<script type='text/javascript'>\n" \
-  "  var timelineSliderOnChange = function() { drawAllStreakTimelines(timelineSliderObj.getValue()); console.log(timelineSliderObj.getValue()) }\n" \
-  "  var timelineSliderObj = $('#timeline_slider').slider({\n" \
-  "   min  : 1,\n" \
-  "   max  : 25,\n" \
-  "  value: 3,\n" \
-  "  ticks: [1,5,10,15,20],\n" \
-  "  ticks_labels: ['1','5','10','15','20'],\n" \
-  "  orientation: 'vertical',\n" \
-  "  tooltip_position:'left',\n" \
-  "  tooltip: 'always'\n" \
-  "}).on('change', timelineSliderOnChange).data('slider');\n" \
-  "</script>" \
   "<script type='text/javascript'>" \
   "jQuery(function($){$(document).ready(function(){$(\"h1.symple-toggle-trigger\").click(function(){$(this).toggleClass(\"active\").next().slideToggle(\"fast\");return false;});});});\n" \
   "jQuery(function($){$(document).ready(function(){$(\"h2.symple-toggle-trigger\").click(function(){$(this).toggleClass(\"active\").next().slideToggle(\"fast\");return false;});});});\n" \
   "jQuery(function($){$(document).ready(function(){$(\"h3.symple-toggle-trigger\").click(function(){$(this).toggleClass(\"active\").next().slideToggle(\"fast\");return false;});});});\n" \
   "</script>\n"
 
+HTML_BODY_SLIDER_SCRIPT = \
+  "<script type='text/javascript'>\n" \
+  "  var timelineSliderOnChange = function() { SLIDER_ONCHANGE_FUNC_NAME(timelineSliderObj.getValue()); console.log(timelineSliderObj.getValue()) }\n" \
+  "  var timelineSliderObj = $('#SLIDER_NAME').slider({\n" \
+  "   min  : 1,\n" \
+  "   max  : SLIDER_MAX_VALUE,\n" \
+  "  value : SLIDER_DEFAULT_VALUE,\n" \
+  "  ticks: [SLIDER_TICKS],\n" \
+  "  ticks_labels: [SLIDER_LABELS],\n" \
+  "  ticks_positions: [SLIDER_POSITIONS]," \
+  "  orientation: 'SLIDER_ORIENTATION',\n" \
+  "  tooltip_position: 'left',\n" \
+  "  tooltip: 'hide'\n" \
+  "}).on('change', timelineSliderOnChange).data('slider');\n" \
+  "</script>" \
+ 
+def GET_TIMELINE_SLIDER_SCRIPT():
+    res = HTML_BODY_SLIDER_SCRIPT
+    res = res.replace("SLIDER_ONCHANGE_FUNC_NAME", "drawAllStreakTimelines")
+    res = res.replace("SLIDER_NAME", "timeline_slider")    
+    res = res.replace("SLIDER_MAX_VALUE", "25")
+    res = res.replace("SLIDER_DEFAULT_VALUE", "3")
+    res = res.replace("SLIDER_TICKS", "1,5,10,15,20")
+    res = res.replace("SLIDER_LABELS", "'1','5','10','15','20'")
+    res = res.replace("SLIDER_POSITIONS", "1,25,50,75,100")
+    res = res.replace("SLIDER_ORIENTATION", "vertical")
+    return res
+    
+def GET_ALLPLAYERS_DUELS_TABLE_SLIDER_SCRIPT(maxVal, ticks=None, defVal = 3):
+    if ticks == None:
+        # generate ticks
+        ticks = []
+        i = 3
+        while i < maxVal:
+            ticks.append(i)
+            i += maxVal / 5
+        ticks.append(i)
+
+    ticksStr = ""
+    ticksLabelsStr = ""
+    ticksPositionsStr = ""
+    for tick in ticks:
+        ticksStr += "%d," % (tick)
+        ticksLabelsStr += "'%d'," % (tick)
+        ticksPositionsStr += "%f," % ((tick*100)/maxVal)
+    ticksStr = ticksStr[:-1]
+    ticksLabelsStr = ticksLabelsStr[:-1]
+    ticksPositionsStr = ticksPositionsStr[:-1]
+        
+    res = HTML_BODY_SLIDER_SCRIPT
+    res = res.replace("SLIDER_ONCHANGE_FUNC_NAME", "drawDuelsTable")
+    res = res.replace("SLIDER_NAME", "all_players_duels_slider")
+    res = res.replace("SLIDER_MAX_VALUE", "%d" % (maxVal))
+    res = res.replace("SLIDER_DEFAULT_VALUE", "%d" % (defVal))
+    res = res.replace("SLIDER_TICKS", ticksStr)
+    res = res.replace("SLIDER_LABELS", ticksLabelsStr)
+    res = res.replace("SLIDER_POSITIONS", ticksPositionsStr)
+    res = res.replace("SLIDER_ORIENTATION", "horizontal")
+    return res    
+    
+HTML_SCRIPT_ALLPLAYERS_DUELS_TABLE_FUNCTION = \
+    "function drawDuelsTable(num) {\n" \
+    "if (num == undefined) { num = 3 }\n" \
+    "  var table = document.getElementById(\"duels_table\")  \n" \
+"  for (var i1 = 0; i1 < table.rows.length;i1++)\n" \
+"  {\n" \
+"      for (var i2 = 0; i2 < table.rows[i1].cells.length;i2++)\n" \
+"      {\n" \
+"           table.rows[i1].cells.item(i2).style.display = \"\";\n" \
+"      }\n" \
+"  }\n" \
+"  \n" \
+"  for (var i = 0; i < table.rows.length;i++)\n" \
+"  {\n" \
+"    var plName = table.rows[i].children[0].innerText\n" \
+"    plName = plName.replace(/(\\r\\n|\\n|\\r)/gm, \"\");\n" \
+"    var plMatchesCnt = parseInt(table.rows[i].children[1].innerText)\n" \
+"    \n" \
+"    if (plMatchesCnt < num)\n" \
+"    {\n" \
+"        for (var i1 = 0; i1 < table.rows.length;i1++)\n" \
+"        {\n" \
+"            for (var i2 = 0; i2 < table.rows[i1].cells.length;i2++)\n" \
+"            {\n" \
+"                if (table.rows[i1].cells.item(i2).id == plName || i1 == i || (i1 == 0 && table.rows[i1].cells.item(i2).innerText == plName))\n" \
+"                {\n" \
+"                    table.rows[i1].cells.item(i2).style.display = \"none\";\n" \
+"                }\n" \
+"            }\n" \
+"        }\n" \
+"    }\n" \
+"  }\n" \
+   "}"    
+    
 # =========================================================================================================================================================
   
 HTML_SCRIPT_HIGHCHARTS_TOTALS_FRAGS_PROGRESS_DIV_TAG = "<div id=\"highchart_totals_frags\" style=\"min-width: 310px; height: 500px; margin: 0 auto\"></div>"
@@ -2759,6 +2886,8 @@ class Player:
         #self.TODO_damage_self = 0
 
         self.overtime_frags = -1
+        self.overtime_2nd_frags = -1
+        self.overtime_3rd_frags = -1
         
         self.rl_attacks = -1
         
@@ -3567,7 +3696,7 @@ class Player:
             if self.rlskill_dh >= 40:
                 self.achievements.append( Achievement(AchievementType.SNIPER, "direct hit is %d" % (self.rlskill_dh)) )
 
-        # PERSONAL_STALKER
+        # PERSONAL_STALKER  # TODO check that there are more than 3 players which played more than 1/2 of the match
         if self.playTimeXML() > ((len(matchProgress) / 2) * 60) and len(matchProgress) != 0 and len(matchProgress[0]) > 3:
             sortedHeadToHead = sorted(headToHead[self.name], key=lambda x: x[1], reverse=True)
             if sortedHeadToHead[0][0] != self.name and sortedHeadToHead[0][1] > (self.kills - sortedHeadToHead[0][1]):
@@ -3612,6 +3741,10 @@ class Player:
         # OVERTIME
         if self.overtime_frags != -1:
             self.achievements.append( Achievement(AchievementType.OVERTIME, "goes to the overtime with {0:d} frags".format(self.overtime_frags)) )
+        
+        # SECOND_OVERTIME
+        if self.overtime_2nd_frags != -1:
+            self.achievements.append( Achievement(AchievementType.SECOND_OVERTIME, "goes to the 2nd overtime with {0:d} frags".format(self.overtime_2nd_frags)) )
 
         # COMBO_DOUBLE_KILL
         for i in xrange(len(self.double_kills)):
@@ -3645,7 +3778,7 @@ AchievementType = enum( LONG_LIVE  = 1, #"Long Live and Prosper",  # the 1st 30 
                         HORRIBLE_FINISH = 7, # "Horrible Finish - finished to play too early", # -2 places up during the last minute    DONE
                         ALWAYS_THE_FIRST = 8, # "Always the 1st", # the 1st place from the 1st minute until the finish                  DONE
                         OVERTIME = 9, # "One of who didn't want to give up", # "Overtime - extra minutes of fight" #DEATHMATCH_SPECIFIC DONE
-                        SECOND_OVERTIME_REASON = 10, # "The 2nd overtime!",  # one of who didn't want to give up once more time             #TODO
+                        SECOND_OVERTIME = 10, # "The 2nd overtime - one of who didn't want to give up AGAIN"       #DEATHMATCH_SPECIFIC DONE
                         HUNDRED_KILLS = 11, # "More than 100 kills", # 100++ kills                                                      DONE tmp img
                         HUNDRED_DEATHS = 12, # "More than 100 deaths", # 100++ deaths                                                   DONE tmp img
                         HUNDRED_FRAGS = 13, # "More than 100 frags", # 100++ frags                                                      DONE tmp img
@@ -3692,6 +3825,9 @@ AchievementType = enum( LONG_LIVE  = 1, #"Long Live and Prosper",  # the 1st 30 
                         KILLSTEAL_STEALER = 54,  # "King of theft" : "stole %d kills" # maximum kill steals - stealer                                           #DEATHMATCH_SPECIFIC   DONE
                         KILLSTEAL_VICTIM = 55,   # "Too unlucky and carefree..." : "honestly earned kills were stolen %d times" # maximum kill steals - victim  #DEATHMATCH_SPECIFIC   DONE
                         FAST_AND_FURIOUS = 56,   # "Fast and Furious!" : "the fastest player with %d max and %d avg speed"      #XML_SPECIFIC   DONE
+                        # TODO win with low speed or simply too slow
+                        # kill + teamkill
+                        # suicide + teamkill
                         
                                             )
 
@@ -3712,11 +3848,16 @@ class Achievement:
     def generateHtml(self, path = "ezquakestats/img/", size = 150):
         return "<img src=\"%s\" alt=\"%s\" title=\"%s: %s\" style=\"width:%dpx;height:%dpx;\">" % (self.getImgSrc(path), self.description(), self.description(), self.extra_info, size, size)
         
-    def generateHtmlEx(self, path = "ezquakestats/img/", size = 125, radius = 45, shadowSize = 8, shadowIntensity = 35):
-        return "<div style=\"position: relative;\">" \
-               "<img src=\"%s\" alt=\"%s\" title=\"%s: %s\" style=\"width:%dpx;height:%dpx;border: 8px solid %s; -webkit-border-radius: %d%%; -moz-border-radius: %d%%; border-radius: %d%%;box-shadow: 0px 0px %dpx %dpx rgba(0,0,0,0.%d);\">" \
-               "</div>" \
-               % (self.getImgSrc(path), self.description(), self.description(), self.extra_info, size, size, Achievement.getBorderColor(self.achlevel), radius, radius, radius, shadowSize, shadowSize, shadowIntensity)
+    def generateHtmlEx(self, path = "ezquakestats/img/", size = 125, radius = 45, shadowSize = 8, shadowIntensity = 35, extraStyleParams = ""):
+        res =  "<div style=\"position: relative;\">" \
+               "<img src=\"%s\" alt=\"%s\" title=\"%s: %s\" style=\"width:%dpx;height:%dpx;border: 8px solid %s; -webkit-border-radius: %d%%; -moz-border-radius: %d%%; border-radius: %d%%;box-shadow: 0px 0px %dpx %dpx rgba(0,0,0,0.%d);%s\">" \
+               % (self.getImgSrc(path), self.description(), self.description(), self.extra_info, size, size, Achievement.getBorderColor(self.achlevel), radius, radius, radius, shadowSize, shadowSize, shadowIntensity, extraStyleParams)
+               
+        if self.isNew():
+            res += Achievement.generateNewIconHtml()
+        
+        res += "</div>"
+        return res
                
     @staticmethod
     def generateHtmlExCnt(ach, extraInfo, count, path = "ezquakestats/img/", size = 125, radius = 45, shadowSize = 8, shadowIntensity = 35):
@@ -3731,7 +3872,7 @@ class Achievement:
         elif count >= 10 and count < 100:
             res += "<div>" \
                    "<img style=\"background-color:%s;position: absolute; top: 0; right: 0;width:57px;height:37px;border: 0px solid black;-webkit-border-radius: 55%%;" \
-                   "-moz-border-radius: 55%%; border-radius: 55%%;box-shadow: 0px 0px 6px 6px rgba(0,0,0,0.25);\" src=\"\" alt=\"\" >" \
+                   "-moz-border-radius: 55%%; border-radius: 55%%;box-shadow: 0px 0px 6px 6px rgba(0,0,0,0.25);\" src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==\">" \
                    "<img style=\"position: absolute; top: 3px; right: 24px;width:27px;height:33px;\" src=\"%s\\nums\\num%d.png\" alt=\"\" >" \
                    "<img style=\"position: absolute; top: 3px; right: 5px;width:27px;height:33px;\" src=\"%s\\nums\\num%d.png\" alt=\"\" >" \
                    "</div>" \
@@ -3739,15 +3880,34 @@ class Achievement:
         elif count >= 100 and count < 1000:
             res += "<div>" \
                    "<img style=\"background-color:%s;position: absolute; top: 0; right: 0;width:57px;height:37px;border: 0px solid black;-webkit-border-radius: 55%%;" \
-                   "-moz-border-radius: 55%%; border-radius: 55%%;box-shadow: 0px 0px 6px 6px rgba(0,0,0,0.25);\" src=\"\" alt=\"\" >" \
+                   "-moz-border-radius: 55%%; border-radius: 55%%;box-shadow: 0px 0px 6px 6px rgba(0,0,0,0.25);\" src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==\">" \
                    "<img style=\"position: absolute; top: 6px; right: 35px;width:22px;height:28px;\" src=\"%s\\nums\\num%d.png\" alt=\"\" >" \
                    "<img style=\"position: absolute; top: 6px; right: 20px;width:22px;height:28px;\" src=\"%s\\nums\\num%d.png\" alt=\"\" >" \
                    "<img style=\"position: absolute; top: 6px; right: 3px;width:22px;height:28px;\" src=\"%s\\nums\\num%d.png\" alt=\"\" >" \
                    "</div>" \
                    % (Achievement.getBorderColor(ach.achlevel), path, count / 100, path, (count % 100) / 10, path, (count % 100) % 10)
+                   
+        if ach.isNew():
+            res += Achievement.generateNewIconHtml()
         
         res += "</div>"
         return res
+    
+    @staticmethod
+    def generateNewIconHtml(path = "ezquakestats/img/"):
+        return "<img style=\"position: absolute; top: 0px; right: 88px; width: 59px; height: 39px; border: 0px solid black;\" src=\"%snew-icon.png\" >" \
+                %(path)
+    
+    def isNew(self, lastAchievementsCount = 4):
+        allachievements = []
+        for key in AchievementType.__dict__.keys():
+            if key != "__dict__" and key != "__doc__" and key != "__module__"and key != "__weakref__":
+                exec("allachievements.append(  Achievement(AchievementType.%s, \"\" ) )" % (key))
+
+        # sort by id
+        allachievements = sorted(allachievements, key=lambda x: (x.achtype), reverse=False)
+        maxVal = allachievements[len(allachievements)-1].achtype
+        return self.achtype >= maxVal - lastAchievementsCount
     
     def description(self):
         if self.achtype == AchievementType.LONG_LIVE:
@@ -3766,8 +3926,8 @@ class Achievement:
             return "Always the 1st"
         if self.achtype == AchievementType.OVERTIME:
             return "One of who didn't want to give up"
-        if self.achtype == AchievementType.SECOND_OVERTIME_REASON:
-            return "The 2nd overtime!"
+        if self.achtype == AchievementType.SECOND_OVERTIME:
+            return "The 2nd overtime - one of who didn't want to give up AGAIN"
         if self.achtype == AchievementType.HUNDRED_KILLS:
             return "More than 100 kills"
         if self.achtype == AchievementType.HUNDRED_DEATHS:
@@ -3901,7 +4061,7 @@ class Achievement:
             return AchievementLevel.ADVANCE_NEGATIVE            
                
         if self.achtype == AchievementType.GREAT_FINISH           or \
-           self.achtype == AchievementType.SECOND_OVERTIME_REASON or \
+           self.achtype == AchievementType.SECOND_OVERTIME        or \
            self.achtype == AchievementType.HUNDRED_KILLS          or \
            self.achtype == AchievementType.FINISH_GURU            or \
            self.achtype == AchievementType.ELECTROMASTER          or \
@@ -4106,6 +4266,8 @@ class Achievement:
             return path + "ach_killsteal_victim.png"
         if self.achtype == AchievementType.FAST_AND_FURIOUS:
             return path + "ach_fast_and_furious.png"
+        if self.achtype == AchievementType.SECOND_OVERTIME:
+            return path + "ach_2nd_overtime.png"            
 
         # temp images
         if self.achtype == AchievementType.HUNDRED_KILLS:
@@ -4258,22 +4420,23 @@ def calculateCommonAchievements(allplayers, headToHead, minutesPlayed, isTeamGam
                 pl.achievements.append( Achievement(AchievementType.KILLSTEAL_VICTIM, "honestly earned kills were stolen %d times" % (len(pl.killsteals_victim))) )
                 
     # FAST_AND_FURIOUS
-    maxSpeedMaxVal = -1
-    avgSpeedMaxVal = -1
-    maxSpeedMaxPlayer = ""
-    avgSpeedMaxPlayer = ""
-    for pl in allplayers:
-        if pl.speed_max >= maxSpeedMaxVal:
-            maxSpeedMaxVal = pl.speed_max
-            maxSpeedMaxPlayer = pl.name
-        if pl.speed_avg >= avgSpeedMaxVal:
-            avgSpeedMaxVal = pl.speed_avg
-            avgSpeedMaxPlayer = pl.name
-    
-    if maxSpeedMaxPlayer == avgSpeedMaxPlayer:
+    if (len(allplayers) > 2):
+        maxSpeedMaxVal = -1
+        avgSpeedMaxVal = -1
+        maxSpeedMaxPlayer = ""
+        avgSpeedMaxPlayer = ""
         for pl in allplayers:
-            if pl.name == maxSpeedMaxPlayer:
-                pl.achievements.append( Achievement(AchievementType.FAST_AND_FURIOUS, "the fastest player with %d max and %d avg speed" % (pl.speed_max, pl.speed_avg)) )
+            if pl.speed_max >= maxSpeedMaxVal:
+                maxSpeedMaxVal = pl.speed_max
+                maxSpeedMaxPlayer = pl.name
+            if pl.speed_avg >= avgSpeedMaxVal:
+                avgSpeedMaxVal = pl.speed_avg
+                avgSpeedMaxPlayer = pl.name
+        
+        if maxSpeedMaxPlayer == avgSpeedMaxPlayer:
+            for pl in allplayers:
+                if pl.name == maxSpeedMaxPlayer:
+                    pl.achievements.append( Achievement(AchievementType.FAST_AND_FURIOUS, "the fastest player with %d max and %d avg speed" % (pl.speed_max, pl.speed_avg)) )
             
                 
 class Team:

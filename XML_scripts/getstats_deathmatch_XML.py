@@ -55,17 +55,6 @@ def fillH2HDamage(who,whom,value,minute):
                 elem[2][minute] += value
     except Exception, ex:
         ezstatslib.logError("fillH2HDamage: who=%s, whom=%s, minute=%d, ex=%s\n" % (who, whom, minute, ex))
-
-def clearZeroPlayer(pl):
-    # TODO remove from headToHead
-    
-    # clear battle progress
-    for mpline in matchProgress: # mpline: [[pl1_name,pl1_frags],[pl2_name,pl2_frags],..]
-        for mp in mpline:        # mp:     [pl1_name,pl1_frags]
-            if pl.name == mp[0]:
-                mpline.remove(mp)       # TODO REMOVE
-                                        # (n for n in n_list if n !=3)  # ifilter
-                                        # https://docs.python.org/2.7/library/stdtypes.html#mutable-sequence-types
         
 
 usageString = "" 
@@ -107,10 +96,6 @@ isEnd = False
 
 allplayers = []
 
-readLinesNum = 0
-
-newLogFormat = False # if at least one LOG_TIMESTAMP_DELIMITER in logs
-
 xmlPlayersStr = []
 xmlPlayers = []
 
@@ -121,7 +106,6 @@ pickmapitemElements = []
 
 elementsByTime = [] # [timestamp, [elemen1, elemen2, .. , elementN]]
 elementsCloseByTime = [] # [[timestamp1,..,timestampN], [elemen1, elemen2, .. , elementN]]  delta(timestamp1,..,timestampN) < 0.2 sec
-
 
 sourceXML = open(options.inputFileXML)
 
@@ -395,6 +379,10 @@ duration = -1
 isOverTime = False
 overtimeMinutes = -1
 rlAttacksByPlayers = {}
+isMoreThanOneOvertimes = False
+isOverTime_2nd = False
+isOverTime_3rd = False
+overtimeMinutesVal = -1
 if not options.inputFileJSON is None and options.inputFileJSON != "":
     with open(options.inputFileJSON, 'r') as fjson:
         jsonStrRead = json.load(fjson)
@@ -411,8 +399,15 @@ if not options.inputFileJSON is None and options.inputFileJSON != "":
 
     isOverTime = minutesPlayedXML != timelimit;
     overtimeMinutes = minutesPlayedXML - timelimit
+    overtimeMinutesVal = overtimeMinutes
     
-   
+    # check for more than 1 overtime
+    # overtime is expected to be 30-50%
+    if overtimeMinutes >= timelimit*0.5:
+        # there is at least the 2nd overtime
+        isMoreThanOneOvertimes = True
+        
+zeroStatsPlayers = []
 # NEWPLAYERS
 for pl in xmlPlayers:
     if pl.name == "world":
@@ -420,6 +415,7 @@ for pl in xmlPlayers:
         
     # exclude players with no kills and no deaths
     if pl.killsXML == 0 and pl.deathsXML == 0 and pl.suicidesXML == 0:
+        zeroStatsPlayers.append(pl.name)
         continue
         
     pl.initPowerUpsByMinutes(minutesPlayedXML)
@@ -437,7 +433,7 @@ for pl in xmlPlayers:
         except:
             pass
     allplayers.append(pl)
-
+    
 if mapName == "":
     mapName = line.split(" ")[0]
 
@@ -517,14 +513,43 @@ for element in elements:
         matchProgressDictEx2.append(progressLineDict)
     
     # overtime check
-    if isOverTime and currentMinute == minutesPlayedXML - overtimeMinutes:
-        if len(allplayersByFrags) >= 2:
-            if allplayersByFrags[0].frags() == allplayersByFrags[1].frags():
-                allplayersByFrags[0].overtime_frags = allplayersByFrags[0].frags()
-                allplayersByFrags[1].overtime_frags = allplayersByFrags[1].frags()
-            else:
-                ezstatslib.logError("ERROR: overtime calculation: currentMinute: %d, minutesPlayedXML: %d, allplayersByFrags[0].frags(): %d, allplayersByFrags[1].frags(): %d" % \
-                 (currentMinute, minutesPlayedXML, allplayersByFrags[0].frags(), allplayersByFrags[1].frags()))
+    if isOverTime and currentMinute == minutesPlayedXML - overtimeMinutes and \
+       (currentMatchTime >= ((currentMinute*60) - 4) and currentMatchTime <= ((currentMinute*60) + 1)) and len(allplayersByFrags) >= 2:
+    
+        if allplayersByFrags[0].frags() == allplayersByFrags[1].frags():
+            allplayersByFrags[0].overtime_frags = allplayersByFrags[0].frags()
+            allplayersByFrags[1].overtime_frags = allplayersByFrags[1].frags()
+        else:
+            ezstatslib.logError("ERROR: overtime calculation: currentMinute: %d, minutesPlayedXML: %d, allplayersByFrags[0].frags(): %d, allplayersByFrags[1].frags(): %d\n" % \
+             (currentMinute, minutesPlayedXML, allplayersByFrags[0].frags(), allplayersByFrags[1].frags()))
+                 
+    # additional overtime check
+    if isOverTime and isMoreThanOneOvertimes and currentMinute > minutesPlayedXML - overtimeMinutes  and \
+       (currentMatchTime >= ((currentMinute*60) - 4) and currentMatchTime <= ((currentMinute*60) + 1)) and len(allplayersByFrags) >= 2:
+
+        # check for 2 overtimes
+        if overtimeMinutes % 2 == 0:
+            overtimeMinutesVal = overtimeMinutes / 2
+            if currentMinute == timelimit + overtimeMinutesVal:
+                if allplayersByFrags[0].frags() == allplayersByFrags[1].frags():
+                    isOverTime_2nd = True
+                    allplayersByFrags[0].overtime_2nd_frags = allplayersByFrags[0].frags()
+                    allplayersByFrags[1].overtime_2nd_frags = allplayersByFrags[1].frags()
+               
+        # check for 3 overtimes 0_o
+        elif overtimeMinutes % 3 == 0:
+            overtimeMinutesVal = overtimeMinutes / 3
+            if currentMinute == timelimit + overtimeMinutesVal:
+                if allplayersByFrags[0].frags() == allplayersByFrags[1].frags():
+                    isOverTime_2nd = True
+                    allplayersByFrags[0].overtime_2nd_frags = allplayersByFrags[0].frags()
+                    allplayersByFrags[1].overtime_2nd_frags = allplayersByFrags[1].frags()
+            elif currentMinute == timelimit + 2*overtimeMinutesVal:
+                if allplayersByFrags[0].frags() == allplayersByFrags[1].frags():
+                    isOverTime_3rd = True
+                    allplayersByFrags[0].overtime_3rd_frags = allplayersByFrags[0].frags()
+                    allplayersByFrags[1].overtime_3rd_frags = allplayersByFrags[1].frags()
+        
 
     # skip Damage and Death elements with target=None (door which is opened by the shot)
     if (isinstance(element, DeathElement) or isinstance(element, DamageElement)) and element.target is None:
@@ -550,7 +575,6 @@ for element in elements:
     
         if not isFoundWho or not isFoundWhom:
             ezstatslib.logError("ERROR: count telefrag %s-%s: %s\n" % (who, whom, logline))
-            exit(0)
     
         continue
     
@@ -569,12 +593,15 @@ for element in elements:
                 break;
         if not isFound:
             ezstatslib.logError("ERROR: count suicides\n")
-            exit(0)    
         continue    
         
     # power ups
     if isinstance(element, PickMapItemElement) and (element.isArmor or element.isHealth):
         checkname = element.player
+        
+        if checkname in zeroStatsPlayers:
+            continue
+        
         if element.isMH:
             pwr = "mh"
         if element.isArmor:
@@ -596,7 +623,6 @@ for element in elements:
                 break;
         if not isFound:
             ezstatslib.logError("ERROR: powerupDetection: no playername %s\n" % (checkname))
-            exit(0)
     
         continue            
     
@@ -614,7 +640,6 @@ for element in elements:
                 weap = "other"  # TODO fall on the player  # TODO ULTRA RARE ACH
             else:
                 ezstatslib.logError("ERROR: unknown weapon: %s\n" % (weap))
-                exit(0)
     
         isFoundWho = False
         isFoundWhom = False
@@ -640,6 +665,9 @@ for element in elements:
         who = element.attacker
         whom = element.target
         weap = element.type
+        
+        if who in zeroStatsPlayers or whom in zeroStatsPlayers:
+            continue
 
         if weap == "trigger" or weap == "slime" or weap == "lg_dis":  # TODO
             continue
@@ -666,7 +694,6 @@ for element in elements:
                 weap = "other"  # TODO fall on the player
             else:
                 ezstatslib.logError("ERROR: unknown weapon: %s\n" % (weap))
-                exit(0)
 
         isFoundWho = False
         isFoundWhom = False
@@ -713,7 +740,7 @@ for element in elements:
             ezstatslib.logError("ERROR: damage calc %s-%s\n" % (who, whom))
 
         continue
-
+        
 # all log lines are processed
 
 tmpComboStr = ""
@@ -864,7 +891,8 @@ for i in xrange(len(elementsByTime)):
                 resStr += "(attacker%d(%s), target%d(%s), wp%s(%s)); " % (deathNum, elementsByTime[i][1][j].attacker, deathNum, elementsByTime[i][1][j].target, deathNum, elementsByTime[i][1][j].type)
                 deathNum += 1
 
-        # ezstatslib.logError("OLOLO: %f deaths(%d) >= 3: %s\n" % (tt, deaths, resStr))
+        # ezstatslib.logError("OLOLO: %f deaths(%d) >= 3: %s\n" % (tt, deaths, resStr))    
+        # OLOLO: 247.862579 deaths(3) >= 3: (attacker1(Sasha), target1(dinoel), wp1(rl)); (attacker2(Sasha), target2(Andrey), wp2(rl)); (attacker3(dinoel), target3(Sasha), wp3(rl));
         tmpComboStr += ("OLOLO: %f deaths(%d) >= 3: %s\n" % (tt, deaths, resStr))
         
 tmpComboStr += "==========================================\n"        
@@ -1675,6 +1703,12 @@ for mpline in matchProgress: # mpline: [[pl1_name,pl1_frags],[pl2_name,pl2_frags
         
     if isOverTime and i == timelimit:
         resultString += "\t\t>> IT IS OVERTIME!! <<\n"
+        
+    if isOverTime_2nd and not isOverTime_3rd and i == timelimit + overtimeMinutesVal:
+        resultString += "\t\t>> IT IS THE 2ND OVERTIME!!!!! <<\n"
+        
+    if isOverTime_2nd and isOverTime_3rd and i == timelimit + 2*overtimeMinutesVal:
+        resultString += "\t\t>> OMG!! IT IS THE 3RD OVERTIME!!!1111adinadin <<\n"
     
     i += 1
     
@@ -1785,6 +1819,7 @@ def writeHtmlWithScripts(f, sortedPlayers, resStr):
     pageHeaderStr = ezstatslib.HTML_HEADER_SCRIPT_SECTION
     pageTitle = "%s %s %s" % (options.leagueName, mapName, matchdate)  # global values
     pageHeaderStr = pageHeaderStr.replace("PAGE_TITLE", pageTitle)
+    pageHeaderStr = pageHeaderStr.replace("SLIDER_STYLE", ezstatslib.HTML_SLIDER_STYLE_VERTICAL)
     pageHeaderStr += ezstatslib.HTML_HEADER_SCRIPT_GOOGLE_CHARTS_LOAD
     
     f.write(pageHeaderStr)
@@ -1849,6 +1884,7 @@ def writeHtmlWithScripts(f, sortedPlayers, resStr):
     deathsLine   = "['Deaths'"    
     suicidesLine = "['Suicides'"
     
+    maxVal = -1
     for pl in sortedPlayers:
         namesLine    += ", '%s'" % (pl.name)
         fragsLine    += ", %d" % (pl.frags())
@@ -1856,6 +1892,11 @@ def writeHtmlWithScripts(f, sortedPlayers, resStr):
         deathsLine   += ", %d" % (pl.deaths)
         suicidesLine += ", %d" % (pl.suicides)
         
+        maxVal = max(maxVal, pl.frags())
+        maxVal = max(maxVal, pl.kills)
+        maxVal = max(maxVal, pl.deaths)
+        maxVal = max(maxVal, pl.suicides)
+
         if isAnnotations:
             namesLine += ", {type: 'string', role: 'annotation'}"
             fragsLine    += ", '%d'" % (pl.frags())
@@ -1870,7 +1911,8 @@ def writeHtmlWithScripts(f, sortedPlayers, resStr):
     suicidesLine += "]\n"
     
     mainStatsBarsStr = mainStatsBarsStr.replace("ADD_HEADER_ROW", namesLine)
-    mainStatsBarsStr = mainStatsBarsStr.replace("ADD_STATS_ROWS", fragsLine + killsLine + deathsLine + suicidesLine)    
+    mainStatsBarsStr = mainStatsBarsStr.replace("ADD_STATS_ROWS", fragsLine + killsLine + deathsLine + suicidesLine)
+    mainStatsBarsStr = mainStatsBarsStr.replace("MAX_VALUE", str(maxVal + 10))
 
     f.write(mainStatsBarsStr)
     # <-- main stats bars
@@ -2317,8 +2359,26 @@ def writeHtmlWithScripts(f, sortedPlayers, resStr):
     xAxisLabels = xAxisLabels.replace("TICK_POSITIONS_VALS", tickPositions)
     
     if isOverTime:
-        xAxisLabels += ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE
-        xAxisLabels = xAxisLabels.replace("VERTICAL_LINE_POS", str((minutesPlayedXML-overtimeMinutes)*60))
+        xAxisLabels += ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE_BEGIN
+        verticalLineLabel = ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE
+        verticalLineLabel = verticalLineLabel.replace("VERTICAL_LINE_POS", str(timelimit * 60))
+        verticalLineLabel = verticalLineLabel.replace("VERTICAL_LINE_COLOR", "#FF0000")
+        xAxisLabels += verticalLineLabel
+        
+    if isOverTime_2nd:
+        verticalLineLabel = ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE
+        verticalLineLabel = verticalLineLabel.replace("VERTICAL_LINE_POS", str((timelimit + overtimeMinutesVal)* 60))
+        verticalLineLabel = verticalLineLabel.replace("VERTICAL_LINE_COLOR", "#C80000")
+        xAxisLabels += verticalLineLabel
+
+    if isOverTime_3rd:
+        verticalLineLabel = ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE
+        verticalLineLabel = verticalLineLabel.replace("VERTICAL_LINE_POS", str((timelimit + 2*overtimeMinutesVal)* 60))
+        verticalLineLabel = verticalLineLabel.replace("VERTICAL_LINE_COLOR", "#AF0000")
+        xAxisLabels += verticalLineLabel        
+    
+    if isOverTime:
+        xAxisLabels += ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE_END
     
     highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("EXTRA_XAXIS_OPTIONS", xAxisLabels)
     
@@ -2566,7 +2626,30 @@ def writeHtmlWithScripts(f, sortedPlayers, resStr):
     highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("GRAPH_TITLE", "Players ranks")
     highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("Y_AXIS_TITLE", "Rank")
     
-    highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("EXTRA_XAXIS_OPTIONS", "")
+    if isOverTime:
+        xAxisLabels = ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE_BEGIN
+        verticalLineLabel = ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE
+        verticalLineLabel = verticalLineLabel.replace("VERTICAL_LINE_POS", str(timelimit * 60))
+        verticalLineLabel = verticalLineLabel.replace("VERTICAL_LINE_COLOR", "#FF0000")
+        xAxisLabels += verticalLineLabel
+        
+    if isOverTime_2nd:
+        verticalLineLabel = ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE
+        verticalLineLabel = verticalLineLabel.replace("VERTICAL_LINE_POS", str((timelimit + overtimeMinutesVal)* 60))
+        verticalLineLabel = verticalLineLabel.replace("VERTICAL_LINE_COLOR", "#C80000")
+        xAxisLabels += verticalLineLabel
+
+    if isOverTime_3rd:
+        verticalLineLabel = ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE
+        verticalLineLabel = verticalLineLabel.replace("VERTICAL_LINE_POS", str((timelimit + 2*overtimeMinutesVal)* 60))
+        verticalLineLabel = verticalLineLabel.replace("VERTICAL_LINE_COLOR", "#AF0000")
+        xAxisLabels += verticalLineLabel        
+    
+    if isOverTime:
+        xAxisLabels += ezstatslib.HTML_SCRIPT_HIGHCHARTS_BATTLE_PROGRESS_FUNCTION_X_AXIS_LABELS_VERTICAL_LINE_END
+    
+    highchartsBattleProgressFunctionStr = highchartsBattleProgressFunctionStr.replace("EXTRA_XAXIS_OPTIONS", xAxisLabels)
+    
             
     # " name: 'rea[rbf]',\n" \
     # " data: [0,7,13,18,22,24,29,36,38,42,48]\n" \        
@@ -2684,6 +2767,8 @@ def writeHtmlWithScripts(f, sortedPlayers, resStr):
     f.write(ezstatslib.HTML_EXPAND_CHECKBOX_FUNCTION)
     f.write(ezstatslib.HTML_EXPAND_POWER_UPS_CHECKBOX_FUNCTION)
     
+    f.write(ezstatslib.HTML_SCRIPT_ON_PAGE_LOAD_FUNCTION.replace("FUNCTIONS",""))
+    
     f.write(ezstatslib.HTML_SCRIPT_SECTION_FOOTER)
     
     # add divs
@@ -2709,7 +2794,8 @@ def writeHtmlWithScripts(f, sortedPlayers, resStr):
     f.write(ezstatslib.HTML_PRE_CLOSE_TAG)
     
     # add script section for folding
-    f.write(ezstatslib.HTML_BODY_FOLDING_SCRIPT)    
+    f.write(ezstatslib.HTML_BODY_FOLDING_SCRIPT)
+    f.write(ezstatslib.GET_TIMELINE_SLIDER_SCRIPT())
     
     f.write(ezstatslib.HTML_FOOTER_NO_PRE)
 
@@ -3549,6 +3635,7 @@ logsf = open(totalsPath, "w")
 pageHeaderStr = ezstatslib.HTML_HEADER_SCRIPT_SECTION
 #pageTitle = "%s %s %s" % (options.leagueName, mapName, matchdate)  # global values
 pageHeaderStr = pageHeaderStr.replace("PAGE_TITLE", "TOTALS")
+pageHeaderStr = pageHeaderStr.replace("SLIDER_STYLE", "")
 #pageHeaderStr += ezstatslib.HTML_HEADER_SCRIPT_GOOGLE_CHARTS_LOAD
     
 logsf.write(pageHeaderStr)
@@ -3685,6 +3772,7 @@ highchartsTotalsRankFunctionStr = highchartsTotalsRankFunctionStr.replace("TOOLT
 logsf.write(highchartsTotalsRankFunctionStr)
 # <-- highcharts totals rank progress
 
+logsf.write(ezstatslib.HTML_SCRIPT_ON_PAGE_LOAD_FUNCTION.replace("FUNCTIONS",""))
 logsf.write(ezstatslib.HTML_SCRIPT_SECTION_FOOTER)
 
 logsf.write(totalsStr)
@@ -3914,6 +4002,7 @@ for plJson in jsonPlayers:
     
     pageHeaderStr = ezstatslib.HTML_HEADER_SCRIPT_SECTION
     pageHeaderStr = pageHeaderStr.replace("PAGE_TITLE", "%s stats" % (plJson.name))
+    pageHeaderStr = pageHeaderStr.replace("SLIDER_STYLE", "")
     
     playerPage.write(pageHeaderStr)
 
@@ -3963,7 +4052,7 @@ allPlayersPageText += "<div align=\"center\"><h1> == ALL PLAYERS == </h1></div>\
 
 jsonPlayersByRank = sorted(jsonPlayers, key=lambda x: (x.rank()), reverse=True)
 
-allPlayersDuelsHeaderRow=['', 'Rank', 'Frags', 'Deaths']
+allPlayersDuelsHeaderRow=['', 'Matches', 'Rank', 'Frags', 'Deaths']
 for pl in jsonPlayersByRank:
     allPlayersDuelsHeaderRow.append(pl.name);    
 
@@ -3971,19 +4060,24 @@ colAlign=[]
 for i in xrange(len(allPlayersDuelsHeaderRow)):
     colAlign.append("center")
 
-    htmlTable = HTML.Table(header_row=allPlayersDuelsHeaderRow, border="1", cellspacing="3", col_align=colAlign,
+    htmlTable = HTML.Table(header_row=allPlayersDuelsHeaderRow, border="1", cellspacing="3", col_align=colAlign, id="duels_table",
                        style="font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 12pt; border-collapse: collapse; border: 4px solid black")
 
+maxPlayedMatchesCount = 0
 for pl in jsonPlayersByRank:
-    tableRow = HTML.TableRow(cells=[htmlLink(ezstatslib.escapePlayerName(pl.name) + ".html", linkText="%s [%d]" % (ezstatslib.htmlBold(pl.name), pl.matchesPlayed)),
+    if pl.matchesPlayed >= maxPlayedMatchesCount:
+        maxPlayedMatchesCount = pl.matchesPlayed
+
+    tableRow = HTML.TableRow(cells=[htmlLink(ezstatslib.escapePlayerName(pl.name) + ".html", linkText="%s" % (ezstatslib.htmlBold(pl.name))),
+                                    ezstatslib.htmlBold(pl.matchesPlayed),
                                     HTML.TableCell(ezstatslib.htmlBold(pl.rank()), bgcolor=ezstatslib.BG_COLOR_GREEN if pl.rank() >= 0 else ezstatslib.BG_COLOR_RED),
                                     ezstatslib.htmlBold(pl.frags),
                                     ezstatslib.htmlBold(pl.deaths)])
         
-    for i in xrange(4,len(allPlayersDuelsHeaderRow)):
+    for i in xrange(5,len(allPlayersDuelsHeaderRow)):
         if allPlayersDuelsHeaderRow[i] in pl.duels.keys():
             if allPlayersDuelsHeaderRow[i] == pl.name:
-                tableRow.cells.append( HTML.TableCell(str(pl.suicides), bgcolor=ezstatslib.BG_COLOR_GRAY) )
+                tableRow.cells.append( HTML.TableCell(str(pl.suicides), bgcolor=ezstatslib.BG_COLOR_GRAY, id=allPlayersDuelsHeaderRow[i]) )
             else:
                 kills  = pl.duels[allPlayersDuelsHeaderRow[i]][0]
                 deaths = pl.duels[allPlayersDuelsHeaderRow[i]][1]
@@ -3999,14 +4093,14 @@ for pl in jsonPlayersByRank:
                 else:
                     cellColor = ezstatslib.BG_COLOR_RED
                  
-                tableRow.cells.append( HTML.TableCell(cellVal, bgcolor=cellColor) )
+                tableRow.cells.append( HTML.TableCell(cellVal, bgcolor=cellColor, id=allPlayersDuelsHeaderRow[i]) )
                 
         else:
-            tableRow.cells.append( HTML.TableCell(""))
+            tableRow.cells.append( HTML.TableCell("", id=allPlayersDuelsHeaderRow[i]) )
                  
     htmlTable.rows.append(tableRow)  
 
-allPlayersPageText += str(htmlTable)
+allPlayersPageText += ezstatslib.HTML_SCRIPT_ALL_PLAYERS_DUELS_TABLE_DIV_TAG.replace("DUELS_TABLE", str(htmlTable))
 
 allPlayersPageText += "</pre>\n"
 
@@ -4019,15 +4113,19 @@ allPlayersPageText += getRankTableRow("mh", "Avg. Mega Health", jsonPlayers)
 allPlayersPageText += "</table>\n"
     
         
-allPlayersPage = open(allPlayersPagePath, "w")        
+allPlayersPage = open(allPlayersPagePath, "w")
 allPlayersPageHeaderStr = ezstatslib.HTML_HEADER_SCRIPT_SECTION
 allPlayersPageHeaderStr = allPlayersPageHeaderStr.replace("PAGE_TITLE", "All players stats")
+allPlayersPageHeaderStr = allPlayersPageHeaderStr.replace("SLIDER_STYLE", ezstatslib.HTML_SLIDER_STYLE_HORIZONTAL)
 allPlayersPage.write(allPlayersPageHeaderStr)
+allPlayersPage.write(ezstatslib.HTML_SCRIPT_ALLPLAYERS_DUELS_TABLE_FUNCTION)
+allPlayersPage.write(ezstatslib.HTML_SCRIPT_ON_PAGE_LOAD_FUNCTION.replace("FUNCTIONS", "drawDuelsTable(3);\n"))
 allPlayersPage.write(ezstatslib.HTML_SCRIPT_SECTION_FOOTER)
 allPlayersPage.write(allPlayersPageText)
 allPlayersPage.write(ezstatslib.HTML_PRE_CLOSE_TAG)   
 # add script section for folding
-allPlayersPage.write(ezstatslib.HTML_BODY_FOLDING_SCRIPT)    
+allPlayersPage.write(ezstatslib.HTML_BODY_FOLDING_SCRIPT)
+allPlayersPage.write(ezstatslib.GET_ALLPLAYERS_DUELS_TABLE_SLIDER_SCRIPT(maxPlayedMatchesCount))
 allPlayersPage.write(ezstatslib.HTML_FOOTER_NO_PRE)    
     
     
@@ -4045,3 +4143,4 @@ allPlayersPage.write(ezstatslib.HTML_FOOTER_NO_PRE)
 # print "duration:", duration
 # print "minutesPlayedXML:", minutesPlayedXML
         
+# https://www.w3schools.com/howto/tryit.asp?filename=tryhow_js_slideshow
