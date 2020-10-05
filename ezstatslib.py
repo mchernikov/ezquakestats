@@ -37,7 +37,7 @@ possibleColors = [HtmlColor.COLOR_RED,
                   HtmlColor.COLOR_CYAN,
                   HtmlColor.COLOR_MAGENTA]
 
-CURRENT_VERSION = "1.27"
+CURRENT_VERSION = "1.28"
                   
 LOG_TIMESTAMP_DELIMITER = " <-> "
 
@@ -52,6 +52,7 @@ LOGS_BY_MAP_FILE_NAME = "logs_by_maps.html"
 TOURNAMENT_TABLE_FILE_NAME = "ezquakestats/tournament_table.html"
 TOTALS_FILE_NAME = "totals.html"
 ALLPLAYERS_FILE_NAME = "allplayers.html"
+ALLACHIEVEMENTS_FILE_NAME = "allachievements.html"
 REPORTS_FOLDER = "../";
 
 NEW_GIF_TAG = "<img src=\"new2.gif\" alt=\"New\" style=\"width:48px;height:36px;\">";
@@ -79,7 +80,8 @@ HTML_HEADER_SCRIPT_SECTION = \
     "<link rel=\"icon\" type=\"image/png\" href=\"ezquakestats/img/quake-icon.png\" />" \
     "<script type=\"text/javascript\" src=\"https://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js\"></script>\n" \
     "<script type=\"text/javascript\" src=\"https://www.gstatic.com/charts/loader.js\"></script>\n" \
-    "<link href=\"http://seiyria.com/bootstrap-slider/css/bootstrap-slider.css\" rel=\"stylesheet\">\n"\
+    "<link href=\"https://seiyria.com/bootstrap-slider/css/bootstrap-slider.css\" rel=\"stylesheet\">\n"\
+    "<link href=\"https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;600&display=swap\" rel=\"stylesheet\">\n" \
     "<style>\n" \
     "SLIDER_STYLE" \
     "</style>\n" \
@@ -1559,8 +1561,8 @@ HTML_FOOTER_NO_PRE = "</body>\n</html>"
 HTML_PRE_CLOSE_TAG = "</pre>\n"
 
 HTML_BODY_FOLDING_SCRIPT = \
-  "<script type='text/javascript' src=\"http://seiyria.com/bootstrap-slider/dependencies/js/jquery.min.js\"></script>\n" \
-  "<script type='text/javascript' src=\"http://seiyria.com/bootstrap-slider/js/bootstrap-slider.js\"></script>\n" \
+  "<script type='text/javascript' src=\"https://seiyria.com/bootstrap-slider/dependencies/js/jquery.min.js\"></script>\n" \
+  "<script type='text/javascript' src=\"https://seiyria.com/bootstrap-slider/js/bootstrap-slider.js\"></script>\n" \
   "<script src=\"https://code.highcharts.com/highcharts.js\"></script>\n" \
   "<script src=\"https://code.highcharts.com/highcharts-3d.js\"></script>\n" \
   "<script src=\"https://code.highcharts.com/modules/exporting.js\"></script>\n" \
@@ -2313,8 +2315,710 @@ HTML_SCRIPT_ALL_PLAYERS_RATING_TABLE_ROW = \
 "<p>BRONZE_PLAYER_NAME</p>\n" \
 "</td>\n" \
 "</tr>\n"
+
+# =========================================================================================================================================================    
+
+HTML_SCRIPT_PLAYER_PAGE_LIFETIME_STATS_BY_MINUTES_FUNCTION =\
+    "google.charts.setOnLoadCallback(drawLifetimeStatsByMinutes);\n" \
+    "function drawLifetimeStatsByMinutes() {\n" \
+    "var data = google.visualization.arrayToDataTable([\n" \
+    "ADD_HEADER_ROW" \
+    "ADD_STATS_ROWS" \
+    "]);\n" \
+    "\n" \
+    "var options = {\n" \
+    "  isStacked: false,\n" \
+    "  height: 250,\n" \
+    "  \n" \
+    "  legend: { position: 'right', maxLines: 2 },\n" \
+    "  title: \"Avg stats by minutes\"\n" \
+    "};\n" \
+    "\n" \
+    "var chart      = new google.visualization.ColumnChart(document.getElementById('lifetime_stats_by_minutes_div'));\n" \
+    "\n" \
+    "chart.draw(data, options);\n" \
+    "chartTotal.draw(dataTotal, optionsTotal);\n" \
+    "$(\"#kills_by_minutes\").attr(\"class\", \"symple-toggle state-closed\");\n" \
+    "}\n"
+
+HTML_PLAYER_PAGE_LIFETIME_STATS_BY_MINUTES_DIV_TAG = \
+  "<div class=\"wpb_text_column wpb_content_element \">\n" \
+  "<div class=\"wpb_wrapper\">\n" \
+  "  <div class=\"symple-toggle state-open\" id=\"kills_by_minutes\">\n" \
+  "    <h3 class=\"symple-toggle-trigger \">Lifetime stats by minutes</h3>\n" \
+  "    <div class=\"symple-toggle-container symple-clearfix\">\n" \
+  "            <div id=\"lifetime_stats_by_minutes_div\" style=\"width:  100%; height:  300px;\"></div>\n" \
+  "    </div>\n" \
+  "  </div>\n" \
+  "</div>\n" \
+  "</div>\n";
   
-  
+# =========================================================================================================================================================      
+
+HTML_ALLACHIEVEMENTS_PAGE_STYLE = \
+"<style>\n" \
+".abs,\n" \
+"h2:after,\n" \
+".cards .card figcaption,\n" \
+".cards .card initialcaption,\n" \
+".cards .card:after,\n" \
+".news .card figcaption,\n" \
+".news .card:after,\n" \
+".news .article figcaption {\n" \
+"  position: absolute;\n" \
+"}\n" \
+".rel,\n" \
+"h2,\n" \
+"h2 strong,\n" \
+".cards .card,\n" \
+".news .card,\n" \
+".news .article {\n" \
+"  position: relative;\n" \
+"}\n" \
+"\n" \
+".rel,\n" \
+"h3,\n" \
+".cards .card,\n" \
+".news .card,\n" \
+".news .article {\n" \
+"  position: relative;\n" \
+"}\n" \
+"\n" \
+".fix {\n" \
+"  position: fixed;\n" \
+"}\n" \
+".dfix {\n" \
+"  display: inline;\n" \
+"}\n" \
+".dib {\n" \
+"  display: inline-block;\n" \
+"}\n" \
+".db {\n" \
+"  display: block;\n" \
+"}\n" \
+".dn {\n" \
+"  display: none;\n" \
+"}\n" \
+".df,\n" \
+".cards,\n" \
+".news {\n" \
+"  display: flex;\n" \
+"}\n" \
+".dif {\n" \
+"  display: inline-flex;\n" \
+"}\n" \
+".dg {\n" \
+"  display: grid;\n" \
+"}\n" \
+".dig {\n" \
+"  display: inline-grid;\n" \
+"}\n" \
+".vm,\n" \
+"h2,\n" \
+"h2 strong,\n" \
+"h2 span {\n" \
+"  vertical-align: middle;\n" \
+"}\n" \
+"@import url('https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@1,700&display=swap');\n" \
+"body {\n" \
+"  background: #24282f;\n" \
+"  font-family: 'Oswald', sans-serif;\n" \
+"}\n" \
+"table\n" \
+"{\n" \
+"  font-family: 'Oswald', sans-serif;\n" \
+"}\n" \
+".wrapper {\n" \
+"  padding: 15px;\n" \
+"}\n" \
+"h2 {\n" \
+"  padding: 10px;\n" \
+"  padding-left: 15px;\n" \
+"  color: #ccc;\n" \
+"  margin: 0;\n" \
+"}\n" \
+"\n" \
+"h3 {\n" \
+"    padding: 9px;\n" \
+"    align-content: center;\n" \
+"    text-align: center;\n" \
+"    vertical-align: top;\n" \
+"    font-size: 25px;\n" \
+"}\n" \
+"\n" \
+"h2 strong {\n" \
+"  z-index: 2;\n" \
+"  background: #24282f;\n" \
+"  padding: 4px 8px;\n" \
+"}\n" \
+"h2 span {\n" \
+"  font-size: 0.7em;\n" \
+"  color: #aaa;\n" \
+"  margin-left: 10px;\n" \
+"}\n" \
+"h2:after {\n" \
+"  content: '';\n" \
+"  z-index: 1;\n" \
+"  bottom: 50%;\n" \
+"  margin-bottom: -2px;\n" \
+"  height: 2px;\n" \
+"  left: 0;\n" \
+"  right: 0;\n" \
+"  background: #373d47;\n" \
+"}\n" \
+".cards,\n" \
+".news {\n" \
+"  flex-flow: row wrap;\n" \
+"}\n" \
+".cards .card,\n" \
+".news .card {\n" \
+"  margin: 15px;\n" \
+"  width: 170px;\n" \
+"  height: 440px;\n" \
+"  overflow: hidden;\n" \
+"  box-shadow: 0 25px 20px rgba(0,0,0,1.8);\n" \
+"  transform-origin: center top;\n" \
+"  transform-style: preserve-3d;\n" \
+"  transform: translateZ(0);\n" \
+"  transition: 0.3s;\n" \
+"}\n" \
+".cards .card img,\n" \
+".news .card img {\n" \
+"  width: 150px;\n" \
+"  vertical-align: center;\n" \
+"}\n" \
+".cards .card figcaption,\n" \
+".news .card figcaption {\n" \
+"bottom: 0;\n" \
+"    left: 0;\n" \
+"    right: 0;\n" \
+"    padding: 20px;\n" \
+"    padding-bottom: 30px;\n" \
+"    font-size: 15px;\n" \
+"    background: none;\n" \
+"    color: #fff;\n" \
+"    transform: translateY(100%);\n" \
+"    transition: 0.3s;\n" \
+"    text-align: center;\n" \
+"}\n" \
+"\n" \
+".cards .card initialcaption\n" \
+"{\n" \
+"bottom: 0;\n" \
+"    left: 0;\n" \
+"    right: 0;\n" \
+"    padding: 14px;\n" \
+"    padding-bottom: 10px;\n" \
+"    font-size: 17px;\n" \
+"    background: none;\n" \
+"    color: #fff;\n" \
+"    transform: translateY(0%);\n" \
+"    transition: 0.3s;\n" \
+"    text-align: center;\n" \
+"}\n" \
+"\n" \
+".cards .card:after,\n" \
+".news .card:after {\n" \
+"  content: '';\n" \
+"  z-index: 10;\n" \
+"  width: 200%;\n" \
+"  height: 100%;\n" \
+"  top: -90%;\n" \
+"  left: -50px;\n" \
+"  opacity: 0.1;\n" \
+"  transform: rotate(45deg);\n" \
+"  background: linear-gradient(to top, transparent, #fff 25%, rgba(255,255,255,0.5));\n" \
+"  transition: 0.3s;\n" \
+"}\n" \
+".cards .card:hover,\n" \
+".news .card:hover,\n" \
+".cards .card:focus,\n" \
+".news .card:focus,\n" \
+".cards .card:active,\n" \
+".news .card:active {\n" \
+"  box-shadow: 0 8px 16px 10px rgba(0,0,0,0.9);\n" \
+"  transform: translateY(-7px) scale(1.07) rotateX(5deg);\n" \
+"}\n" \
+"\n" \
+".cards .card:hover figcaption,\n" \
+".news .card:hover figcaption,\n" \
+".cards .card:focus figcaption,\n" \
+".news .card:focus figcaption,\n" \
+".cards .card:active figcaption,\n" \
+".news .card:active figcaption {\n" \
+"  transform: none;\n" \
+"}\n" \
+"\n" \
+".cards .card:hover initialcaption,\n" \
+".cards .card:focus initialcaption,\n" \
+".cards .card:active initialcaption {\n" \
+"  transform: translateY(100%);\n" \
+"}\n" \
+"\n" \
+"\n" \
+".cards .card:hover:after,\n" \
+".news .card:hover:after,\n" \
+".cards .card:focus:after,\n" \
+".news .card:focus:after,\n" \
+".cards .card:active:after,\n" \
+".news .card:active:after {\n" \
+"  transform: rotate(55deg);\n" \
+"  top: -60%;\n" \
+"  opacity: 0.15;\n" \
+"}\n" \
+"\n" \
+".cards .card:hover:after initialcaption,\n" \
+".cards .card:focus:after initialcaption,\n" \
+".cards .card:active:after initialcaption\n" \
+"{\n" \
+"  transform: rotate(85deg);\n" \
+"  top: -70%;\n" \
+"  opacity: 0.15;\n" \
+"}\n" \
+"\n" \
+".news .article {\n" \
+"  overflow: hidden;\n" \
+"  width: 350px;\n" \
+"  height: 235px;\n" \
+"  margin: 20px;\n" \
+"}\n" \
+".news .article img {\n" \
+"  width: 100%;\n" \
+"  min-height: 100%;\n" \
+"  transition: 0.2s;\n" \
+"}\n" \
+".news .article figcaption {\n" \
+"  font-size: 14px;\n" \
+"  text-shadow: 0 1px 0 rgba(51,51,51,0.3);\n" \
+"  color: #fff;\n" \
+"  left: 0;\n" \
+"  right: 0;\n" \
+"  top: 0;\n" \
+"  bottom: 0;\n" \
+"  padding: 40px;\n" \
+"  box-shadow: 0 0 2px rgba(0,0,0,0.2);\n" \
+"  background: rgba(6,18,53,0.6);\n" \
+"  opacity: 0;\n" \
+"  transform: scale(1.15);\n" \
+"  transition: 0.2s;\n" \
+"}\n" \
+".news .article figcaption h3 {\n" \
+"  color: #3792e3;\n" \
+"  font-size: 16px;\n" \
+"  margin-bottom: 0;\n" \
+"  font-weight: bold;\n" \
+"}\n" \
+".news .article:hover img,\n" \
+".news .article:focus img,\n" \
+".news .article:active img {\n" \
+"  filter: blur(3px);\n" \
+"  transform: scale(0.97);\n" \
+"}\n" \
+".news .article:hover figcaption,\n" \
+".news .article:focus figcaption,\n" \
+".news .article:active figcaption {\n" \
+"  opacity: 1;\n" \
+"  transform: none;\n" \
+"}\n" \
+"@font-face { \n" \
+"  font-family: myFirstFont; \n" \
+"  src: url(sansation_light.woff); \n" \
+"} \n" \
+" \n" \
+" \n" \
+"/* latin */ \n" \
+"@font-face { \n" \
+"  font-family: 'Monoton'; \n" \
+"  font-style: normal; \n" \
+"  font-weight: 400; \n" \
+"  src: local('Monoton'), local('Monoton-Regular'), url(https://fonts.gstatic.com/s/monoton/v10/5h1aiZUrOngCibe4TkHLQg.woff2) format('woff2'); \n" \
+"  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; \n" \
+"} \n" \
+" \n" \
+"@-webkit-keyframes text-flicker-in-glow { \n" \
+"  0% { \n" \
+"    opacity: 0; \n" \
+"  } \n" \
+"  10% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  10.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  10.2% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  20% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  20.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.25); \n" \
+"  } \n" \
+"  20.6% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  30% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  30.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.45), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.25); \n" \
+"  } \n" \
+"  30.5% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.45), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.25); \n" \
+"  } \n" \
+"  30.6% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  45% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  45.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.45), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.25); \n" \
+"  } \n" \
+"  50% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.45), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.25); \n" \
+"  } \n" \
+"  55% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.45), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.25); \n" \
+"  } \n" \
+"  55.1% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  57% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  57.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.55), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.35); \n" \
+"  } \n" \
+"  60% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.55), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.35); \n" \
+"  } \n" \
+"  60.1% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  65% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  65.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.55), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.35), 0 0 100px rgba(255, 255, 255, 0.1); \n" \
+"  } \n" \
+"  75% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.55), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.35), 0 0 100px rgba(255, 255, 255, 0.1); \n" \
+"  } \n" \
+"  75.1% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  77% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  77.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.55), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.4), 0 0 110px rgba(255, 255, 255, 0.2), \n" \
+"      0 0 100px rgba(255, 255, 255, 0.1); \n" \
+"  } \n" \
+"  85% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.55), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.4), 0 0 110px rgba(255, 255, 255, 0.2), \n" \
+"      0 0 100px rgba(255, 255, 255, 0.1); \n" \
+"  } \n" \
+"  85.1% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  86% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  86.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.6), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.45), 0 0 110px rgba(255, 255, 255, 0.25), \n" \
+"      0 0 100px rgba(255, 255, 255, 0.1); \n" \
+"  } \n" \
+"  100% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.6), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.45), 0 0 110px rgba(255, 255, 255, 0.25), \n" \
+"      0 0 100px rgba(255, 255, 255, 0.1); \n" \
+"  } \n" \
+"} \n" \
+"@keyframes text-flicker-in-glow { \n" \
+"  0% { \n" \
+"    opacity: 0; \n" \
+"  } \n" \
+"  10% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  10.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  10.2% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  20% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  20.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.25); \n" \
+"  } \n" \
+"  20.6% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  30% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  30.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.45), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.25); \n" \
+"  } \n" \
+"  30.5% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.45), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.25); \n" \
+"  } \n" \
+"  30.6% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  45% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  45.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.45), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.25); \n" \
+"  } \n" \
+"  50% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.45), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.25); \n" \
+"  } \n" \
+"  55% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.45), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.25); \n" \
+"  } \n" \
+"  55.1% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  57% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  57.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.55), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.35); \n" \
+"  } \n" \
+"  60% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.55), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.35); \n" \
+"  } \n" \
+"  60.1% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  65% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  65.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.55), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.35), 0 0 100px rgba(255, 255, 255, 0.1); \n" \
+"  } \n" \
+"  75% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.55), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.35), 0 0 100px rgba(255, 255, 255, 0.1); \n" \
+"  } \n" \
+"  75.1% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  77% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  77.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.55), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.4), 0 0 110px rgba(255, 255, 255, 0.2), \n" \
+"      0 0 100px rgba(255, 255, 255, 0.1); \n" \
+"  } \n" \
+"  85% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.55), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.4), 0 0 110px rgba(255, 255, 255, 0.2), \n" \
+"      0 0 100px rgba(255, 255, 255, 0.1); \n" \
+"  } \n" \
+"  85.1% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  86% { \n" \
+"    opacity: 0; \n" \
+"    text-shadow: none; \n" \
+"  } \n" \
+"  86.1% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.6), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.45), 0 0 110px rgba(255, 255, 255, 0.25), \n" \
+"      0 0 100px rgba(255, 255, 255, 0.1); \n" \
+"  } \n" \
+"  100% { \n" \
+"    opacity: 1; \n" \
+"    text-shadow: 0 0 30px rgba(255, 255, 255, 0.6), \n" \
+"      0 0 60px rgba(255, 255, 255, 0.45), 0 0 110px rgba(255, 255, 255, 0.25), \n" \
+"      0 0 100px rgba(255, 255, 255, 0.1); \n" \
+"  } \n" \
+"} \n" \
+" \n" \
+" \n" \
+"h1 { \n" \
+"  font-weight: 350; \n" \
+"  font-size: 110px; \n" \
+"  height: 100px; \n" \
+"  text-align: center; \n" \
+"  font-family: \"Monoton\", cursive; \n" \
+"} \n" \
+"</style>\n" 
+
+HTML_SCRIPT_ALLACHIEVEMENTS_PAGE_FOLDING = \
+" function showHideACH_LEVEL_NAME(t = 400) {\n" \
+" $('#ACH_DIV_ID').slideToggle(t);\n" \
+" }\n"
+
+HTML_SCRIPT_ALLACHIEVEMENTS_INIT_PAGE = \
+" function initPage() {\n" \
+" showHideAdvanced(0.5);\n" \
+" showHideRare(0.5);\n" \
+" showHideUltraRare(0.5);\n" \
+" const target = window.document.getElementsByTagName('h1')[0] \n" \
+" const flickerLetter = letter => `<span style=\"animation: text-flicker-in-glow ${Math.random()*4}s linear both \">${letter}</span>` \n" \
+" const colorLetter = letter => `<span style=\"color: hsla(${Math.random()*360}, 100%, 80%, 1);\">${letter}</span>`; \n" \
+" const flickerAndColorText = text =>  \n" \
+"  text \n" \
+"    .split('') \n" \
+"    .map(flickerLetter) \n" \
+"    .map(colorLetter) \n" \
+"    .join(''); \n" \
+" const neonGlory = target => target.innerHTML = flickerAndColorText(target.textContent); \n" \
+" neonGlory(target); \n" \
+" target.onclick = ({ target }) =>  neonGlory(target); \n" \
+" }\n"
+
+HTML_ALLACHIEVEMENTS_PAGE_HEADER = \
+"<h1>Achievements</h1>\n" \
+
+HTML_ALLACHIEVEMENTS_PAGE_WRAPPER_HEADER = \
+"<div class=\"wrapper\">\n" 
+
+HTML_ALLACHIEVEMENTS_PAGE_SECTION_HEADER = \
+"  <h2 onclick=\"showHideACH_LEVEL_NAME()\"><strong>ACH_LEVEL_NAME<span>( ACHS_COUNT )</span></strong></h2>\n" \
+"  <div id=\"ACH_DIV_ID\" class=\"cards\">\n"
+
+HTML_ALLACHIEVEMENTS_PAGE_DIV_FOOTER = \
+"  </div>\n"
+
+HTML_ALLACHIEVEMENTS_PAGE_CARD_BEGIN = \
+"<figure class=\"card\">\n" \
+"    CARD_IMAGE\n" \
+"    <initialcaption>\n" \
+"    <h3 style=\"color: CARD_TEXT_COLOR\">CARD_MAIN_TEXT</h3>\n" \
+
+HTML_ALLACHIEVEMENTS_PAGE_CARD_END = \
+"    </initialcaption>\n" \
+"    <figcaption>\n" \
+"        CARD_DESCRIPTION\n" \
+"        <hr>\n" \
+"        <p style=\"font-size: 11px; color: #459939; display: POSITIVE_VISIBLE\">Positive</p>\n" \
+"        <p style=\"font-size: 11px; color: #D63838; display: NEGATIVE_VISIBLE\">Negative</p>\n" \
+"        <div style=\"display: SECTION_SPECIFIC_VISIBLE\">\n" \
+"          <p style=\"font-size: 11px; color: #BEBEBE; display: TEAM_SPECIFIC_VISIBLE\">#TeamSpecific</p>\n" \
+"          <p style=\"font-size: 11px; color: #BEBEBE; display: DM_SPECIFIC_VISIBLE\">#DeathmatchSpecific</p>\n" \
+"        </div>\n" \
+"    </figcaption>\n" \
+"</figure>\n" \
+
+HTML_ALLACHIEVEMENTS_PAGE_CARD_TABLE = \
+"    <table>\n" \
+"    <tr style=\"visibility:GOLD_PLAYER_VISIBILITY\">\n" \
+"        <td style=\"width:10%;text-align:right\">\n" \
+"            <img src=\"ezquakestats\img\\total_page_imgs\medal1_noBG.png\" style=\"width: 22px;\" alt=\"#1\" title=\"#1\">\n" \
+"        </td>\n" \
+"        <td style=\"width:3%;\"></td>\n" \
+"        <td style=\"width:87%; text-align:left; vertical-align: top; font-size: 13px; italic\">\n" \
+"            <div style=\"margin-top: 1px; margin-left: 2px\">GOLD_PLAYER_NAME</div>\n" \
+"        </td>\n" \
+"    </tr>\n" \
+"    <tr style=\"visibility:SILVER_PLAYER_VISIBILITY\">\n" \
+"        <td style=\"width:10%;text-align:right\">\n" \
+"            <img src=\"ezquakestats\img\\total_page_imgs\medal2_noBG.png\" style=\"width: 22px;\" alt=\"#2\" title=\"#2\">\n" \
+"        </td>\n" \
+"        <td style=\"width:3%;\"></td>\n" \
+"        <td style=\"width:87%; text-align:left; vertical-align: top; font-size: 13px; italic\">\n" \
+"            <div style=\"margin-top: 1px; margin-left: 2px\">SILVER_PLAYER_NAME</div>\n" \
+"        </td>    \n" \
+"    </tr>\n" \
+"    <tr style=\"visibility:BRONZE_PLAYER_VISIBILITY\">\n" \
+"        <td style=\"width:10%;text-align:right\">\n" \
+"            <img src=\"ezquakestats\img\\total_page_imgs\medal3_noBG.png\" style=\"width: 22px;\" alt=\"#2\" title=\"#2\">\n" \
+"        </td>\n" \
+"        <td style=\"width:3%;\"></td>\n" \
+"        <td style=\"width:87%; text-align:left; vertical-align: top; font-size: 13px; italic\">\n" \
+"            <div style=\"margin-top: 1px; margin-left: 2px\">BRONZE_PLAYER_NAME</div>\n" \
+"        </td>\n" \
+"    </tr>\n" \
+"    </table>\n" \
+
+# =========================================================================================================================================================      
   
 BG_COLOR_GRAY  = "#bfbfbf"
 BG_COLOR_LIGHT_GRAY = "#e6e6e6"
@@ -3545,11 +4249,11 @@ class Player:
     def calculateAchievements(self, matchProgress, powerUpsStatus, headToHead, isTeamGame):
         connectionTime = self.connectTime if self.connectTime != 0 else self.connectionTimeXML
         # LONG_LIVE_KING
-        if (len(self.deathStreaks) != 0 and self.deathStreaks[0].start >= connectionTime + 60):
+        if (len(self.deathStreaks) != 0 and self.deathStreaks[0].start >= connectionTime + Achievement.LongLiveKingTime):
             self.achievements.append( Achievement(AchievementType.LONG_LIVE_KING, "first time is killed on second %d%s" % (self.deathStreaks[0].start, "" if connectionTime == 0 else " (connected on %d sec)" % (connectionTime))) )
         else:
         # LONG_LIVE
-            if (len(self.deathStreaks) != 0 and self.deathStreaks[0].start >= connectionTime + 30):
+            if (len(self.deathStreaks) != 0 and self.deathStreaks[0].start >= connectionTime + Achievement.LongLiveTime):
                 self.achievements.append( Achievement(AchievementType.LONG_LIVE, "first time is killed on second %d%s" % (self.deathStreaks[0].start, "" if connectionTime == 0 else " (connected on %d sec)" % (connectionTime))) )
 
         for strk in self.deathStreaks:
@@ -3557,22 +4261,22 @@ class Player:
             strkParsedNames = strk.parseNames()
             for el in strkParsedNames:
                 if el[0] == "SELF":
-                    if el[1] == 2:
+                    if el[1] == Achievement.SuicideMasterValue:
                         self.achievements.append( Achievement(AchievementType.SUICIDE_MASTER, "%d suicides in a row" % (el[1])) )
-                    elif el[1] >= 3:
+                    elif el[1] >= Achievement.SuicideKingValue:
                         self.achievements.append( Achievement(AchievementType.SUICIDE_KING, "%d suicides in a row!" % (el[1])) )
 
             # DEATH_STREAK_PAIN
-            if strk.count >= 10:
+            if strk.count >= Achievement.DeathStreakPainValue:
                 self.achievements.append( Achievement(AchievementType.DEATH_STREAK_PAIN, "%d deaths in a row during %d seconds" % (strk.count, strk.duration())) )
 
         for strk in self.calculatedStreaks:
             # KILL_STREAK
-            if strk.count >= 15:
+            if strk.count >= Achievement.KillStreakValue:
                 self.achievements.append( Achievement(AchievementType.KILL_STREAK, "%d kills in a row during %d seconds" % (strk.count, strk.duration())) )
                 
         # HORRIBLE_FINISH, FINISH_GURU
-        if len(matchProgress) >= 2:
+        if len(matchProgress) >= Achievement.FinishMatchMinMinutesValue:
             pos1 = 1
             for el in matchProgress[len(matchProgress)-2]:
                 if el[0] == self.name:
@@ -3587,10 +4291,10 @@ class Player:
                 else:
                     pos2 +=1
 
-            if pos2 - pos1 >= 2:
+            if pos2 - pos1 >= Achievement.HorribleFinishValue:
                 self.achievements.append( Achievement(AchievementType.HORRIBLE_FINISH, "before the last minute place was %d but finished on place %d" % (pos1, pos2)) )
 
-            if pos2 == 1 and pos1 > 2:
+            if pos2 == 1 and pos1 > Achievement.FinishGuruValue:
                 self.achievements.append( Achievement(AchievementType.FINISH_GURU, "before the last minute place was %d but won the game!!" % (pos1)) )
 
         # HUNDRED_KILLS
@@ -3606,19 +4310,19 @@ class Player:
             self.achievements.append( Achievement(AchievementType.HUNDRED_FRAGS, "%d frags" % (self.frags())) )
 
         # RED_ARMOR_EATER
-        if self.ra >= 10:
+        if self.ra >= Achievement.RedArmorEaterValue:
             self.achievements.append( Achievement(AchievementType.RED_ARMOR_EATER, "%d red armors%s" % (self.ra, "" if self.ra < 15 else ". %d CARL!!" % (self.ra))) )
 
         # YELLOW_ARMOR_EATER
-        if self.ya >= 10:
+        if self.ya >= Achievement.YellowArmorEaterValue:
             self.achievements.append( Achievement(AchievementType.YELLOW_ARMOR_EATER, "%d yellow armors%s" % (self.ya, "" if self.ya < 15 else ". %d CARL!!" % (self.ya))) )
 
         # GREEN_ARMOR_EATER
-        if self.ga >= 10:
+        if self.ga >= Achievement.GreenArmorEaterValue:
             self.achievements.append( Achievement(AchievementType.GREEN_ARMOR_EATER, "%d green armors%s" % (self.ga, "" if self.ga < 15 else ". %d CARL!!" % (self.ga))) )
 
         # MEGA_HEALTH_EATER
-        if self.mh >= 10:
+        if self.mh >= Achievement.MegaHealthEaterValue:
             self.achievements.append( Achievement(AchievementType.MEGA_HEALTH_EATER, "%d mega healths%s" % (self.mh, "" if self.mh < 15 else ". %d CARL!!" % (self.mh))) )
 
         # RED_ARMOR_ALLERGY
@@ -3638,11 +4342,11 @@ class Player:
             self.achievements.append( Achievement(AchievementType.MEGA_HEALTH_ALLERGY) )
 
         # RAINBOW_FLAG
-        if self.ra >= 10 and self.ya >= 10 and self.ga >= 10:
-            self.achievements.append( Achievement(AchievementType.RAINBOW_FLAG, "10+ each of armors") )
+        if self.ra >= Achievement.RainbowFlagArmorValue and self.ya >= Achievement.RainbowFlagArmorValue and self.ga >= Achievement.RainbowFlagArmorValue:
+            self.achievements.append( Achievement(AchievementType.RAINBOW_FLAG, "%d+ each of armors (ra: %d, ya: %d, ga: %d)" % (Achievement.RainbowFlagArmorValue, self.ra, self.ya, self.ga)) )
 
         # CHILD_KILLER
-        if self.spawnfrags >= 10:
+        if self.spawnfrags >= Achievement.ChildKillerValue:
             self.achievements.append( Achievement(AchievementType.CHILD_KILLER, "%d spawn frags%s" % (self.spawnfrags, "" if self.spawnfrags < 15 else ". %d CARL!!" % (self.spawnfrags))) )
 
         # CHILD_LOVER
@@ -3690,8 +4394,9 @@ class Player:
 
         # SNIPER
         if len(self.rl_damages_gvn) != 0:
-            if (sum(1 for val in self.rl_damages_gvn if val[0] == 110) / float(len(self.rl_damages_gvn)) > 0.35 and len(self.rl_damages_gvn) > 30):
-                self.achievements.append( Achievement(AchievementType.SNIPER, "direct hit is {0:5.3}%".format((sum(1 for val in self.rl_damages_gvn if val[0] == 110) * 100) / float(len(self.rl_damages_gvn)))))
+            dhCount = sum(1 for val in self.rl_damages_gvn if val[0] == 110)
+            if (dhCount / float(len(self.rl_damages_gvn)) > float(Achievement.SniperDHPercentsValue) / 100.0 and len(self.rl_damages_gvn) > Achievement.SniperRLShotsValue):
+                self.achievements.append( Achievement(AchievementType.SNIPER, "direct hit is {0:5.3}%".format( (dhCount * 100) / float(len(self.rl_damages_gvn)))))
         else:
             if self.rlskill_dh >= 40:
                 self.achievements.append( Achievement(AchievementType.SNIPER, "direct hit is %d" % (self.rlskill_dh)) )
@@ -3708,16 +4413,21 @@ class Player:
             self.achievements.append( Achievement(AchievementType.SELF_DESTRUCTOR, "suicided %d times which more than killed any other player" % (self.suicides)) )
 
         # LUMBERJACK
-        if self.axe_kills >= 3:
+        if self.axe_kills >= Achievement.LumberjackValue:
             self.achievements.append( Achievement(AchievementType.LUMBERJACK, "%d axe kills" % (self.axe_kills)) )
 
         # ELECTROMASTER
-        if (self.kills > 0 and self.lg_kills >= 15 and ( ((float(self.lg_kills) / float(self.kills) * 100) >= 40.0) or (((float(self.lg_kills) / float(self.kills) * 100)) >= 75.0))):
-            self.achievements.append( Achievement(AchievementType.ELECTROMASTER, "{0:d} lazer gun kills({1:5.3}%)".format(self.lg_kills, (float(self.lg_kills) / float(self.kills) * 100))) )
+        if (self.kills > 0 and self.playTimeXML() > ((len(matchProgress) / 2) * 60)):
+            lgKillsPercents = float(self.lg_kills) / float(self.kills) * 100
+            if ( lgKillsPercents >= float(Achievement.ElectomasterNoConditionPercent) or \
+                (self.lg_kills >= Achievement.ElectomasterKillsConditionValue and lgKillsPercents >= float(Achievement.ElectomasterKillsConditionPercent)) ):
+                self.achievements.append( Achievement(AchievementType.ELECTROMASTER, "{0:d} lazer gun kills({1:5.3}%)".format(self.lg_kills, lgKillsPercents)) )
 
         # FASTER_THAN_BULLET
         for strk in self.calculatedStreaks:
-            if strk.count >= 5 and (strk.end - strk.start > 0) and (float(strk.end - strk.start) / (float)(strk.count)) <= 3.0:
+            if strk.count >= Achievement.FasterThanBulletKillsValue and \
+               (strk.end - strk.start > 0) and \
+               (float(strk.end - strk.start) / (float)(strk.count)) <= float(Achievement.FasterThanBulletAvgValue):
                 self.achievements.append( Achievement(AchievementType.FASTER_THAN_BULLET, "streak {0:d} kills in {1:.3} seconds - only {2:.3} seconds per kill".format(strk.count, float(strk.end - strk.start), (float(strk.end - strk.start) / (float)(strk.count)))) )
 
         # NO_SUICIDES
@@ -3725,17 +4435,17 @@ class Player:
             self.achievements.append( Achievement(AchievementType.NO_SUICIDES, "") )
 
         # UNIVERSAL_SOLDIER
-        if len(self.kill_weapons) > 5:
+        if len(self.kill_weapons) >= Achievement.UniversalSoldierValue:
             self.achievements.append(Achievement(AchievementType.UNIVERSAL_SOLDIER,
                                                  'Killed with {} different weapons'.format(len(self.kill_weapons))))
         
         # MULTIPLE_PENETRATION
-        if len(self.death_weapons) > 5:
+        if len(self.death_weapons) >= Achievement.MultiplePenetrationValue:
             self.achievements.append(Achievement(AchievementType.MULTIPLE_PENETRATION,
                                                  'Got killed with {} different weapons'.format(len(self.death_weapons))))
 
         # GL_LOVER
-        if self.kills > 0 and self.gl_kills >= 15 and ((float(self.gl_kills) / float(self.kills) * 100)) >= 45.0:
+        if self.kills > 0 and self.gl_kills >= Achievement.GLLoverKillsValue and ((float(self.gl_kills) / float(self.kills) * 100)) >= float(Achievement.GLLoverPercentsValue):
             self.achievements.append( Achievement(AchievementType.GL_LOVER, "{0:d} grenade launcher kills({1:5.3}%)".format(self.gl_kills, (float(self.gl_kills) / float(self.kills) * 100))) )
                                                  
         # OVERTIME
@@ -3751,11 +4461,11 @@ class Player:
             self.achievements.append( Achievement(AchievementType.COMBO_DOUBLE_KILL, "killed %s and %s with one %s shot!" % (self.double_kills[i][0], self.double_kills[i][1], self.double_kills[i][2])) )
             
         # COMBO_MUTUAL_KILL
-        if len(self.mutual_kills) >= 3:
+        if len(self.mutual_kills) >= Achievement.ComboMutualValue:
             self.achievements.append( Achievement(AchievementType.COMBO_MUTUAL_KILL, "fought bravely until the last blood drop %d times" % (len(self.mutual_kills))) )
             
         # COMBO_KAMIKAZE
-        if len(self.suicide_kills) >= 3:
+        if len(self.suicide_kills) >= Achievement.ComboKamikazeValue:
             self.achievements.append( Achievement(AchievementType.COMBO_KAMIKAZE, "The sun on the wings - move forward! For the last time, the enemy will see the sunrise! One plane for one enemy! %d times..." % (len(self.suicide_kills))) )            
             
         # COMBO_TRIPLE_KILL
@@ -3828,12 +4538,52 @@ AchievementType = enum( LONG_LIVE  = 1, #"Long Live and Prosper",  # the 1st 30 
                         # TODO win with low speed or simply too slow
                         # kill + teamkill
                         # suicide + teamkill
+                        # Lumberjack junior
                         
                                             )
 
 AchievementLevel = enum(UNKNOWN=0, BASIC_POSITIVE=1, BASIC_NEGATIVE=2, ADVANCE_POSITIVE=3, ADVANCE_NEGATIVE=5, RARE_POSITIVE=6, RARE_NEGATIVE=7, ULTRA_RARE=8)
+
+AchievementGameType = enum(BOTH=0, TEAM_SPECIFIC=1, DEATHMATCH_SPECIFIC=2)
                                             
 class Achievement:
+    # constants
+    LongLiveTime = 30
+    LongLiveKingTime = 60
+    SuicideMasterValue = 2
+    SuicideKingValue = 3
+    DeathStreakPainValue = 10
+    KillStreakValue = 15
+    LumberjackValue = 3
+    UniversalSoldierValue = 6
+    MultiplePenetrationValue = 6
+    GLLoverKillsValue = 15
+    GLLoverPercentsValue = 45
+    ComboKamikazeValue = 3
+    ComboMutualValue = 3
+    KillstealStealerValue = 3
+    KillstealVictimValue = 3
+    HulkSmashPercentsValue = 75
+    DeathCheaterPercentsValue = 50
+    FasterThanBulletKillsValue = 5
+    FasterThanBulletAvgValue = 3
+    ChildKillerValue = 10
+    RedArmorEaterValue = 10
+    YellowArmorEaterValue = 10
+    GreenArmorEaterValue = 10
+    MegaHealthEaterValue = 10
+    RainbowFlagArmorValue = 10
+    BestFriendKillerValue = 3
+    MaxTeamdeathValue = 3
+    SniperDHPercentsValue = 35
+    SniperRLShotsValue = 30
+    HorribleFinishValue = 2
+    FinishGuruValue = 2
+    FinishMatchMinMinutesValue = 5
+    ElectomasterNoConditionPercent = 75
+    ElectomasterKillsConditionValue = 15
+    ElectomasterKillsConditionPercent = 40
+
     def __init__(self, achtype, extra_info = ""):
         self.achtype = achtype
         self.extra_info = extra_info
@@ -3854,7 +4604,7 @@ class Achievement:
                % (self.getImgSrc(path), self.description(), self.description(), self.extra_info, size, size, Achievement.getBorderColor(self.achlevel), radius, radius, radius, shadowSize, shadowSize, shadowIntensity, extraStyleParams)
                
         if self.isNew():
-            res += Achievement.generateNewIconHtml()
+            res += Achievement.generateNewIconHtml(extraStyleParams = extraStyleParams)
         
         res += "</div>"
         return res
@@ -3894,9 +4644,9 @@ class Achievement:
         return res
     
     @staticmethod
-    def generateNewIconHtml(path = "ezquakestats/img/"):
-        return "<img style=\"position: absolute; top: 0px; right: 88px; width: 59px; height: 39px; border: 0px solid black;\" src=\"%snew-icon.png\" >" \
-                %(path)
+    def generateNewIconHtml(path = "ezquakestats/img/", extraStyleParams = ""):
+        return "<img style=\"position: absolute; top: 0px; right: 88px; width: 59px; height: 39px; border: 0px solid black;%s\" src=\"%snew-icon.png\" >" \
+                % (extraStyleParams, path)
     
     def isNew(self, lastAchievementsCount = 4):
         allachievements = []
@@ -3908,26 +4658,164 @@ class Achievement:
         allachievements = sorted(allachievements, key=lambda x: (x.achtype), reverse=False)
         maxVal = allachievements[len(allachievements)-1].achtype
         return self.achtype >= maxVal - lastAchievementsCount
+        
+    def isImplemented(self):
+        if self.achtype == AchievementType.GREAT_FINISH or self.achtype == AchievementType.OVERTIME_LOOSERS:
+            return False
+        else:
+            return True
     
-    def description(self):
+    def isPositive(self):
+        return self.achlevel == AchievementLevel.BASIC_POSITIVE   or \
+               self.achlevel == AchievementLevel.ADVANCE_POSITIVE or \
+               self.achlevel == AchievementLevel.RARE_POSITIVE    or \
+               self.achlevel == AchievementLevel.ULTRA_RARE
+    
+    def gameType(self):
+        if self.achtype == AchievementType.TEAMMATES_FAN           or \
+           self.achtype == AchievementType.LIKE_AN_ANGEL           or \
+           self.achtype == AchievementType.TEAM_MAXIMUM_TEAMDEATHS or \
+           self.achtype == AchievementType.TEAM_BEST_FRIEND_KILLER:
+            return AchievementGameType.TEAM_SPECIFIC
+            
+        elif self.achtype == AchievementType.OVERTIME          or \
+             self.achtype == AchievementType.SECOND_OVERTIME   or \
+             self.achtype == AchievementType.KILLSTEAL_STEALER or \
+             self.achtype == AchievementType.KILLSTEAL_VICTIM:
+            return AchievementGameType.DEATHMATCH_SPECIFIC
+            
+        else:
+            return AchievementGameType.BOTH
+    
+    def shortName(self):
         if self.achtype == AchievementType.LONG_LIVE:
-            return "Long Live and Prosper"
+            return "Long Liver"
         if self.achtype == AchievementType.SUICIDE_MASTER:
             return "Suicide Master"
         if self.achtype == AchievementType.SUICIDE_KING:
             return "Suicide King"
         if self.achtype == AchievementType.DEATH_STREAK_PAIN:
+            return "Death streak"
+        if self.achtype == AchievementType.GREAT_FINISH:
+            return "Great Finish"
+        if self.achtype == AchievementType.HORRIBLE_FINISH:
+            return "Horrible Finish"
+        if self.achtype == AchievementType.ALWAYS_THE_FIRST:
+            return "Always the first"
+        if self.achtype == AchievementType.OVERTIME:
+            return "Extra time!"
+        if self.achtype == AchievementType.SECOND_OVERTIME:
+            return "More extra time!!"
+        if self.achtype == AchievementType.HUNDRED_KILLS:
+            return "Hundred kills"
+        if self.achtype == AchievementType.HUNDRED_DEATHS:
+            return "Hundred deaths"
+        if self.achtype == AchievementType.HUNDRED_FRAGS:
+            return "Hundred frags"
+        if self.achtype == AchievementType.RED_ARMOR_EATER:
+            return "Red armor eater"
+        if self.achtype == AchievementType.GREEN_ARMOR_EATER:
+            return "Green armor eater"
+        if self.achtype == AchievementType.YELLOW_ARMOR_EATER:
+            return "Yellow armor eater"
+        if self.achtype == AchievementType.MEGA_HEALTH_EATER:
+            return "Mega healths eater"
+        if self.achtype == AchievementType.RED_ARMOR_ALLERGY:
+            return "Red armor allergy"
+        if self.achtype == AchievementType.GREEN_ARMOR_ALLERGY:
+            return "Green armor allergy"
+        if self.achtype == AchievementType.YELLOW_ARMOR_ALLERGY:
+            return "Yellow armor allergy"
+        if self.achtype == AchievementType.MEGA_HEALTH_ALLERGY:
+            return "Mega healths allergy"
+        if self.achtype == AchievementType.CHILD_KILLER:
+            return "Child killer"
+        if self.achtype == AchievementType.ALWAYS_THE_LAST:
+            return "Always the last"
+        if self.achtype == AchievementType.ROCKETS_LOVER:
+            return "Rockets lover"
+        if self.achtype == AchievementType.DUEL_WINNER:
+            return "Duel winner"
+        if self.achtype == AchievementType.SNIPER:
+            return "Sniper"
+        if self.achtype == AchievementType.RAINBOW_FLAG:
+            return "Rainbow flag"
+        if self.achtype == AchievementType.PERSONAL_STALKER:
+            return "Personal stalker"
+        if self.achtype == AchievementType.FINISH_GURU:
+            return "Finish Guru"
+        if self.achtype == AchievementType.SELF_DESTRUCTOR:
+            return "Self destructor"
+        if self.achtype == AchievementType.TEAM_BEST_FRIEND_KILLER:
+            return "Best friends killer"
+        if self.achtype == AchievementType.TEAM_MAXIMUM_TEAMDEATHS:
+            return "Best friends victim"
+        if self.achtype == AchievementType.LUMBERJACK:
+            return "Lumberjack"
+        if self.achtype == AchievementType.ELECTROMASTER:
+            return "Electomaster"
+        if self.achtype == AchievementType.WHITEWASH:
+            return "Whitewash"
+        if self.achtype == AchievementType.FASTER_THAN_BULLET:
+            return "Faster than bullet"
+        if self.achtype == AchievementType.DEATH_CHEATER:
+            return "Death cheater"
+        if self.achtype == AchievementType.TEAMMATES_FAN:
+            return "Teammates fan"
+        if self.achtype == AchievementType.NO_SUICIDES:
+            return "Life lover"
+        if self.achtype == AchievementType.UNIVERSAL_SOLDIER:
+            return "Universal soldier"
+        if self.achtype == AchievementType.MULTIPLE_PENETRATION:
+            return "Multiple penetration"
+        if self.achtype == AchievementType.LONG_LIVE_KING:
+            return "Royal Long Liver"
+        if self.achtype == AchievementType.HULK_SMASH:
+            return "Hulk SMASH!!"
+        if self.achtype == AchievementType.KILL_STREAK:
+            return "Killing streak"
+        if self.achtype == AchievementType.CHILD_LOVER:
+            return "Child lover"
+        if self.achtype == AchievementType.GL_LOVER:
+            return "Grenades lover"
+        if self.achtype == AchievementType.BALANCED_PLAYER:
+            return "Balanced player"
+        if self.achtype == AchievementType.LIKE_AN_ANGEL:
+            return "Like an angel"
+        if self.achtype == AchievementType.COMBO_DOUBLE_KILL:
+            return "Double kill"
+        if self.achtype == AchievementType.COMBO_MUTUAL_KILL:
+            return "Mutual kills"
+        if self.achtype == AchievementType.COMBO_KAMIKAZE:
+            return "Kamikaze"
+        if self.achtype == AchievementType.COMBO_TRIPLE_KILL:
+            return "Triple kill"
+        if self.achtype == AchievementType.KILLSTEAL_STEALER:
+            return "King of theft"
+        if self.achtype == AchievementType.KILLSTEAL_VICTIM:
+            return "Kill steals victim"
+        if self.achtype == AchievementType.FAST_AND_FURIOUS:
+            return "Fast and Furious"
+    
+    def description(self):
+        if self.achtype == AchievementType.LONG_LIVE:
+            return "Long Live and Prosper"
+        if self.achtype == AchievementType.SUICIDE_MASTER:
+            return "Life is pain..."
+        if self.achtype == AchievementType.SUICIDE_KING:
+            return "Life is too hard..."
+        if self.achtype == AchievementType.DEATH_STREAK_PAIN:
             return "What do you know about the pain?..."
         if self.achtype == AchievementType.GREAT_FINISH:
             return "Great Finish"
         if self.achtype == AchievementType.HORRIBLE_FINISH:
-            return "Horrible Finish - finished to play too early"
+            return "Finished to play too early"
         if self.achtype == AchievementType.ALWAYS_THE_FIRST:
-            return "Always the 1st"
+            return "You are in it to win it"
         if self.achtype == AchievementType.OVERTIME:
             return "One of who didn't want to give up"
         if self.achtype == AchievementType.SECOND_OVERTIME:
-            return "The 2nd overtime - one of who didn't want to give up AGAIN"
+            return "One of who didn't want to give up AGAIN"
         if self.achtype == AchievementType.HUNDRED_KILLS:
             return "More than 100 kills"
         if self.achtype == AchievementType.HUNDRED_DEATHS:
@@ -3943,83 +4831,192 @@ class Achievement:
         if self.achtype == AchievementType.MEGA_HEALTH_EATER:
             return "Mega healths eater"
         if self.achtype == AchievementType.RED_ARMOR_ALLERGY:
-            return "Red armor allergy - no red armors"
+            return "Does not like red armors"
         if self.achtype == AchievementType.GREEN_ARMOR_ALLERGY:
-            return "Green armor allergy - no green armors"
+            return "Does not like green armors"
         if self.achtype == AchievementType.YELLOW_ARMOR_ALLERGY:
-            return "Yellow armor allergy - no yellow armors"
+            return "Does not like yellow armors"
         if self.achtype == AchievementType.MEGA_HEALTH_ALLERGY:
-            return "Mega healths allergy - no mega healths"
+            return "Does not like mega healths"
         if self.achtype == AchievementType.CHILD_KILLER:
-            return "Child killer"
+            return "They are too loud"
         if self.achtype == AchievementType.ALWAYS_THE_LAST:
-            return "Always the last"
+            return "On the bottom every moment"
         if self.achtype == AchievementType.ROCKETS_LOVER:
-            return "Rockets lover"
+            return "Rockets are the best"
         if self.achtype == AchievementType.DUEL_WINNER:
             return "Duel winner"
         if self.achtype == AchievementType.SNIPER:
-            return "Sniper"
+            return "Every shot is just as sweet as pie"
         if self.achtype == AchievementType.RAINBOW_FLAG:
-            return "Like rainbow flag - I hope today is not Aug 2"
+            return "I hope today is not Aug 2"
         if self.achtype == AchievementType.PERSONAL_STALKER:
-            return "Personal stalker"
+            return "The one who always returns what he gets from others"
         if self.achtype == AchievementType.FINISH_GURU:
-            return "Finish Guru"
+            return "Fergie Time is my time"
         if self.achtype == AchievementType.SELF_DESTRUCTOR:
-            return "Self destructor - the main your enemy is yourself"
+            return "The main your enemy is yourself"
         if self.achtype == AchievementType.TEAM_BEST_FRIEND_KILLER:
             return "With friends like that, who needs enemies?"
         if self.achtype == AchievementType.TEAM_MAXIMUM_TEAMDEATHS:
             return "My friends are THE BEST OF THE BEST!!"
         if self.achtype == AchievementType.LUMBERJACK:
-            return "Lumberjack"
+            return "Just cold steel and nothing else."
         if self.achtype == AchievementType.ELECTROMASTER:
-            return "Electomaster - I like to roast"
+            return "I like to roast!"
         if self.achtype == AchievementType.WHITEWASH:
-            return "Whitewash - full duel victory and total domination"
+            return "Full duel victory and total domination"
         if self.achtype == AchievementType.FASTER_THAN_BULLET:
             return "Faster than bullet"
         if self.achtype == AchievementType.DEATH_CHEATER:
-            return "Death cheater"
+            return "Tricked the death"
         if self.achtype == AchievementType.TEAMMATES_FAN:
-            return "Teammates fan - no team deaths and no team kills"
+            return "Friends are above everything."
         if self.achtype == AchievementType.NO_SUICIDES:
-            return "I love this life!! No suicides at all"
+            return "I love this life!!"
         if self.achtype == AchievementType.UNIVERSAL_SOLDIER:
-            return 'Can handle any weapon'
+            return "Can handle any weapon"
         if self.achtype == AchievementType.MULTIPLE_PENETRATION:
-            return 'So many different holes in your body:('
+            return "So many different holes in the body"
         if self.achtype == AchievementType.LONG_LIVE_KING:
             return "Long Live and Prosper Like A King"
         if self.achtype == AchievementType.HULK_SMASH:
-            return "Hulk SMASH!!"
+            return "H-H-H-U-L-K SMASH!!"
         if self.achtype == AchievementType.KILL_STREAK:
             return "Killing without rest"
         if self.achtype == AchievementType.CHILD_LOVER:
-            return "Children are the flowers of our lives - no spawn frags"
+            return "Children are the flowers of our lives"
         if self.achtype == AchievementType.GL_LOVER:
-            return "Grenades is my passion!"
+            return "Grenades are my passion!"
         if self.achtype == AchievementType.BALANCED_PLAYER:
-            return "Balanced player - no one wants to lose"
+            return "No one wants to lose"
         if self.achtype == AchievementType.LIKE_AN_ANGEL:
-            return "Like an angel - NO damage to teammates at all!!"
+            return "Never raise a hand against friends"
         if self.achtype == AchievementType.COMBO_DOUBLE_KILL:
-            return "Two budgies slain with but a single missile"
+            return "One shot deal - took care of two enemies at once"
         if self.achtype == AchievementType.COMBO_MUTUAL_KILL:
             return "Fight to the death!!"
         if self.achtype == AchievementType.COMBO_KAMIKAZE:
-            return "Kamikaze - one way ticket!!"
+            return "The sun on the wings - move forward! For the last time, the enemy will see the sunrise! One plane for one enemy!"
         if self.achtype == AchievementType.COMBO_TRIPLE_KILL:
-            return "Three enemies with a single shot"
+            return "One shot deal - took care of three enemies at once"
         if self.achtype == AchievementType.KILLSTEAL_STEALER:
-            return "King of theft"
+            return "Escaped justice"
         if self.achtype == AchievementType.KILLSTEAL_VICTIM:
             return "Too unlucky and carefree..."
         if self.achtype == AchievementType.FAST_AND_FURIOUS:
-            return "Fast and Furious!"
+            return "Faster than light"
 
-    # AchievementLevel = enum(UNKNOWN=0, BASIC_POSITIVE=1, BASIC_NEGATIVE=2, ADVANCE_POSITIVE=3, ADVANCE_NEGATIVE=5, RARE_POSITIVE=6, RARE_NEGATIVE=7, ULTRA_RARE=8)
+    def conditionsDescription(self):
+        if self.achtype == AchievementType.LONG_LIVE:
+            return "Didn't die for the first %d seconds of the match or since connection." % (Achievement.LongLiveTime)
+        if self.achtype == AchievementType.SUICIDE_MASTER:
+            return "%s suicides in a row." % (Achievement.SuicideMasterValue)
+        if self.achtype == AchievementType.SUICIDE_KING:
+            return "More than %s suicides in a row." % (Achievement.SuicideKingValue)
+        if self.achtype == AchievementType.DEATH_STREAK_PAIN:
+            return "More than %d suicides in a row." % (Achievement.DeathStreakPainValue)
+        if self.achtype == AchievementType.GREAT_FINISH: # TODO
+            return "Great Finish"
+        if self.achtype == AchievementType.HORRIBLE_FINISH:
+            return "Lost more than %d places during the last minute of the match (match time should be more than %d minutes)." % (Achievement.HorribleFinishValue, Achievement.FinishMatchMinMinutesValue)
+        if self.achtype == AchievementType.ALWAYS_THE_FIRST:
+            return "The 1st place from the very beginning until the match end (each minute except the 1st time stamp)."
+        if self.achtype == AchievementType.OVERTIME:
+            return "One of the players on the top with equal frags."
+        if self.achtype == AchievementType.SECOND_OVERTIME:
+            return "One of the players on the top with equal frags once more time."
+        if self.achtype == AchievementType.HUNDRED_KILLS:
+            return "Killed enemies more than 100 times during the match."
+        if self.achtype == AchievementType.HUNDRED_DEATHS:
+            return "Was killed more than 100 times during the match."
+        if self.achtype == AchievementType.HUNDRED_FRAGS:
+            return "Earned 100 frags during the match."
+        if self.achtype == AchievementType.RED_ARMOR_EATER:
+            return "Put on more than %d red armors during the match." % (Achievement.RedArmorEaterValue)
+        if self.achtype == AchievementType.GREEN_ARMOR_EATER:
+            return "Put on more than %d green armors during the match." % (Achievement.GreenArmorEaterValue)
+        if self.achtype == AchievementType.YELLOW_ARMOR_EATER:
+            return "Put on more than %d yellow armors during the match." % (Achievement.YellowArmorEaterValue)
+        if self.achtype == AchievementType.MEGA_HEALTH_EATER:
+            return "Collected more than %d mega healthes during the match." % (Achievement.MegaHealthEaterValue)
+        if self.achtype == AchievementType.RED_ARMOR_ALLERGY:
+            return "No red armors during the match (should play at least half of the match time)."
+        if self.achtype == AchievementType.GREEN_ARMOR_ALLERGY:
+            return "No green armors during the match (should play at least half of the match time)."
+        if self.achtype == AchievementType.YELLOW_ARMOR_ALLERGY:
+            return "No yellow armors during the match (should play at least half of the match time)."
+        if self.achtype == AchievementType.MEGA_HEALTH_ALLERGY:
+            return "No mega healths during the match (should play at least half of the match time)."
+        if self.achtype == AchievementType.CHILD_KILLER:
+            return "More than %d spawn frags during the match." % (Achievement.ChildKillerValue)
+        if self.achtype == AchievementType.ALWAYS_THE_LAST:
+            return "The last place from the very beginning until the match end (each minute except the 1st time stamp, should play at least three quarters of the match time)."
+        if self.achtype == AchievementType.ROCKETS_LOVER:
+            return "All kills are made via rocket launcher (should play at least half of the match time)."
+        if self.achtype == AchievementType.DUEL_WINNER:
+            return "Won duel match."
+        if self.achtype == AchievementType.SNIPER:
+            return "Hit more than %d rockets and DirectHit is more than %d per cent." % (Achievement.SniperRLShotsValue, Achievement.SniperDHPercentsValue)
+        if self.achtype == AchievementType.RAINBOW_FLAG:
+            return "Put on more than %d armors of each of three colors during the match." % (Achievement.RainbowFlagArmorValue)
+        if self.achtype == AchievementType.PERSONAL_STALKER:
+            return "One specific enemy kills count is more all other kills."
+        if self.achtype == AchievementType.FINISH_GURU:
+            return "Raised for more than %d places up during the last minute and won the match (match time should be more than %d minutes)." % (Achievement.FinishGuruValue, Achievement.FinishMatchMinMinutesValue)
+        if self.achtype == AchievementType.SELF_DESTRUCTOR:
+            return "Suicided more than killed any other player during the match."
+        if self.achtype == AchievementType.TEAM_BEST_FRIEND_KILLER:
+            return "Killed a maximum of all players and more than %d teammates during the match." % (Achievement.BestFriendKillerValue)
+        if self.achtype == AchievementType.TEAM_MAXIMUM_TEAMDEATHS:
+            return "A maximum of all players and more than %d deaths from teammates during the match." % (Achievement.MaxTeamdeathValue)
+        if self.achtype == AchievementType.LUMBERJACK:
+            return "More than %d axe kills." % (Achievement.LumberjackValue)
+        if self.achtype == AchievementType.ELECTROMASTER:
+            return "Laser gun: more than %d per cent of all kills OR %d kills + more than %d per cent of all kills (should play at least half of the match time)." % (Achievement.ElectomasterNoConditionPercent, Achievement.ElectomasterKillsConditionValue, Achievement.ElectomasterKillsConditionPercent)
+        if self.achtype == AchievementType.WHITEWASH:
+            return "Duel with the enemy is fully won with no deaths (both players should play at least half of the match time)."
+        if self.achtype == AchievementType.FASTER_THAN_BULLET:
+            return "Kill streak with more than %d kills with less than %d seconds per kill." % (Achievement.FasterThanBulletKillsValue, Achievement.FasterThanBulletAvgValue)
+        if self.achtype == AchievementType.DEATH_CHEATER:
+            return "Died less than %d per cent of the average deaths count of players which played at least three quarters of the match." % (Achievement.DeathCheaterPercentsValue)
+        if self.achtype == AchievementType.TEAMMATES_FAN:
+            return "No team deaths and no team kills during the match (should play at least half of the match time)."
+        if self.achtype == AchievementType.NO_SUICIDES:
+            return "No suicides during the match (should play at least half of the match time)."
+        if self.achtype == AchievementType.UNIVERSAL_SOLDIER:
+            return "Kills via more than %d different weapons." % (Achievement.UniversalSoldierValue)
+        if self.achtype == AchievementType.MULTIPLE_PENETRATION:
+            return "Deaths via more than %d different weapons." % (Achievement.MultiplePenetrationValue)
+        if self.achtype == AchievementType.LONG_LIVE_KING:
+            return "Didn't die for the first %d seconds of the match or since connection." % (Achievement.LongLiveKingTime)
+        if self.achtype == AchievementType.HULK_SMASH:
+            return "Frags number of the winner is more than the 2nd place value by %d per cent." % (Achievement.HulkSmashPercentsValue)
+        if self.achtype == AchievementType.KILL_STREAK:
+            return "More than %d kills in a row." % (Achievement.KillStreakValue)
+        if self.achtype == AchievementType.CHILD_LOVER:
+            return "No spawn frags during the match (should play at least half of the match time)."
+        if self.achtype == AchievementType.GL_LOVER:
+            return "More than %d grenade kills and more than %d per cent by all player kills." % (Achievement.GLLoverKillsValue, Achievement.GLLoverPercentsValue)
+        if self.achtype == AchievementType.BALANCED_PLAYER:
+            return "All duels with enemies are draws."
+        if self.achtype == AchievementType.LIKE_AN_ANGEL:
+            return "No damage to teammates at all."
+        if self.achtype == AchievementType.COMBO_DOUBLE_KILL:
+            return "Killed two enemies with a single shot."
+        if self.achtype == AchievementType.COMBO_MUTUAL_KILL:
+            return "More than %d mutual kills (players kill each other at the same moment)." % (Achievement.ComboMutualValue)
+        if self.achtype == AchievementType.COMBO_KAMIKAZE:
+            return "Enemy kill + suicide with a single shot more than %d times." % (Achievement.ComboKamikazeValue)
+        if self.achtype == AchievementType.COMBO_TRIPLE_KILL:
+            return "Killed three enemies with a single shot."
+        if self.achtype == AchievementType.KILLSTEAL_STEALER:
+            return "Stole a maximum of all players and more than %d kills during the match." % (Achievement.KillstealStealerValue)
+        if self.achtype == AchievementType.KILLSTEAL_VICTIM:
+            return "Honestly earned kills were stolen a maximum of all players and more than %d times during the match." % (Achievement.KillstealVictimValue)
+        if self.achtype == AchievementType.FAST_AND_FURIOUS:
+            return "Average and maximum speed are a maximum of all players."
+
     def level(self):
         if self.achtype == AchievementType.RED_ARMOR_EATER    or \
            self.achtype == AchievementType.GREEN_ARMOR_EATER  or \
@@ -4284,7 +5281,7 @@ def calculateCommonAchievements(allplayers, headToHead, minutesPlayed, isTeamGam
         # TEAM_BEST_FRIEND_KILLER
         sortedByTeamkills = sorted(allplayers, key=attrgetter("teamkills"), reverse=True)
         maxTeamkillsVal = sortedByTeamkills[0].teamkills
-        if maxTeamkillsVal >= 3:
+        if maxTeamkillsVal >= Achievement.BestFriendKillerValue:
             for pl in sortedByTeamkills:
                 if pl.teamkills == maxTeamkillsVal:
                     pl.achievements.append( Achievement(AchievementType.TEAM_BEST_FRIEND_KILLER, "killed teammates %d times" % (pl.teamkills)) )
@@ -4292,7 +5289,7 @@ def calculateCommonAchievements(allplayers, headToHead, minutesPlayed, isTeamGam
         # TEAM_MAXIMUM_TEAMDEATHS
         sortedByTeamdeaths = sorted(allplayers, key=attrgetter("teamdeaths"), reverse=True)
         maxTeamdeathsVal = sortedByTeamdeaths[0].teamdeaths
-        if maxTeamdeathsVal >= 3:
+        if maxTeamdeathsVal >= Achievement.MaxTeamdeathValue:
             for pl in sortedByTeamdeaths:
                 if pl.teamdeaths == maxTeamdeathsVal:
                     pl.achievements.append( Achievement(AchievementType.TEAM_MAXIMUM_TEAMDEATHS, "was killed by teammates %d times" % (pl.teamdeaths)) )
@@ -4331,13 +5328,13 @@ def calculateCommonAchievements(allplayers, headToHead, minutesPlayed, isTeamGam
 
     for pl in allplayers:
         if pl.playTimeXML() >= ((minutesPlayed*3 / 4) * 60):
-            if pl.deaths < (int)(avgDeathsCount * 0.5):
+            if pl.deaths < (int)(avgDeathsCount * ((float(Achievement.DeathCheaterPercentsValue))/100.0) ):
                 pl.achievements.append( Achievement(AchievementType.DEATH_CHEATER, "died only {0:d} times ({1:5.3}% of the average)".format(pl.deaths, (float(pl.deaths) / float(avgDeathsCount) * 100))) )
 
     # HULK_SMASH
     if len(allplayers) >= 2:
         sortedByFrags = sorted(allplayers, key=lambda x: (x.frags(), x.kills, x.calcDelta()), reverse=True)
-        if sortedByFrags[0].frags() >= sortedByFrags[1].frags()*1.75:
+        if sortedByFrags[0].frags() >= sortedByFrags[1].frags()*(1 + (float(Achievement.HulkSmashPercentsValue))/100.0):
             sortedByFrags[0].achievements.append( Achievement(AchievementType.HULK_SMASH, "frags number {0:d} much more that the 2nd place({1:d})".format(sortedByFrags[0].frags(), sortedByFrags[1].frags())) )
 
     # BALANCED_PLAYER
@@ -4403,7 +5400,7 @@ def calculateCommonAchievements(allplayers, headToHead, minutesPlayed, isTeamGam
                         pl.achievements.append( Achievement(AchievementType.LIKE_AN_ANGEL) )
                         
     # KILLSTEAL_STEALER
-    # KILLSTEAL_STEALER
+    # KILLSTEAL_VICTIM
     if not isTeamGame:
         maxStealsStealer = -1
         maxStealsVictim  = -1
@@ -4414,9 +5411,9 @@ def calculateCommonAchievements(allplayers, headToHead, minutesPlayed, isTeamGam
                 maxStealsVictim = len(pl.killsteals_victim)
         
         for pl in allplayers:
-            if maxStealsStealer >= 3 and len(pl.killsteals_stealer) == maxStealsStealer:
+            if maxStealsStealer >= Achievement.KillstealStealerValue and len(pl.killsteals_stealer) == maxStealsStealer:
                 pl.achievements.append( Achievement(AchievementType.KILLSTEAL_STEALER, "stole %d kills" % (len(pl.killsteals_stealer))) )
-            if maxStealsVictim >= 3 and len(pl.killsteals_victim) == maxStealsVictim:
+            if maxStealsVictim >= Achievement.KillstealVictimValue and len(pl.killsteals_victim) == maxStealsVictim:
                 pl.achievements.append( Achievement(AchievementType.KILLSTEAL_VICTIM, "honestly earned kills were stolen %d times" % (len(pl.killsteals_victim))) )
                 
     # FAST_AND_FURIOUS
